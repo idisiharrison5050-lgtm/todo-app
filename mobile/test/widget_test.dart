@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:todo_mobile/features/tasks/application/task_store.dart';
@@ -7,7 +8,12 @@ void main() {
   testWidgets('renders the Today screen', (WidgetTester tester) async {
     final store = TaskStore();
 
-    await tester.pumpWidget(TodayPage(store: store));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TodayPage(store: store),
+      ),
+    );
+    await tester.pump();
 
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('Your tasks'), findsOneWidget);
