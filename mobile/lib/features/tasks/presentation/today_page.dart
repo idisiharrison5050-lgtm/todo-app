@@ -75,7 +75,7 @@ class _TodayContent extends StatelessWidget {
                 sliver: SliverList.separated(
                   itemCount: tasks.length,
                   itemBuilder: (context, index) => _TaskTile(task: tasks[index], onToggle: () => store.toggleCompleted(tasks[index].id)),
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
                 ),
               ),
           ],
@@ -126,7 +126,6 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
