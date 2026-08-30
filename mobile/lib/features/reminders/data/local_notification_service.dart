@@ -20,7 +20,7 @@ class LocalNotificationService {
     tz.initializeTimeZones();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final darwin = DarwinInitializationSettings(
+    const darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
@@ -32,7 +32,7 @@ class LocalNotificationService {
       macOS: darwin,
     );
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
     _initialized = true;
   }
 
@@ -69,11 +69,11 @@ class LocalNotificationService {
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
 
     await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduled,
-      const NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduled,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'todo_reminders',
           'Task reminders',
@@ -90,7 +90,7 @@ class LocalNotificationService {
   Future<void> cancel(int id) async {
     if (kIsWeb) return;
     await initialize();
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   Future<void> cancelAll() async {
