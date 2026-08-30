@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/preferences_task_repository.dart';
 import '../data/task_repository.dart';
+import '../data/task_repository_factory.dart';
 import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
   TaskStore({TaskRepository? repository})
-      : _repository = repository ?? PreferencesTaskRepository();
+      : _repository = repository ?? createTaskRepository();
 
   final TaskRepository _repository;
   final List<Task> _tasks = <Task>[];
