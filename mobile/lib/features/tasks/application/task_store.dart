@@ -5,8 +5,7 @@ import '../data/task_repository_factory.dart';
 import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
-  TaskStore({TaskRepository? repository})
-      : _repository = repository ?? createTaskRepository();
+  TaskStore({TaskRepository? repository}) : _repository = repository ?? createTaskRepository();
 
   final TaskRepository _repository;
   final List<Task> _tasks = <Task>[];
@@ -17,7 +16,6 @@ class TaskStore extends ChangeNotifier {
 
   Future<void> load() async {
     if (_isLoaded) return;
-
     final loaded = await _repository.getTasks();
     _tasks
       ..clear()
@@ -43,19 +41,40 @@ class TaskStore extends ChangeNotifier {
       reminderInterval: reminderInterval,
       priority: priority,
     );
-
     await _repository.saveTask(task);
     _tasks.add(task);
+    notifyListeners();
+  }
+
+  Future<void> updateTask(
+    String id, {
+    required String title,
+    String notes = '',
+    DateTime? dueAt,
+    TaskReminderType reminderType = TaskReminderType.none,
+    Duration? reminderInterval,
+    TaskPriority priority = TaskPriority.normal,
+  }) async {
+    final index = _tasks.indexWhere((task) => task.id == id);
+    if (index == -1) return;
+
+    final updated = _tasks[index].copyWith(
+      title: title.trim(),
+      notes: notes.trim(),
+      dueAt: dueAt,
+      reminderType: reminderType,
+      reminderInterval: reminderInterval,
+      priority: priority,
+    );
+    await _repository.saveTask(updated);
+    _tasks[index] = updated;
     notifyListeners();
   }
 
   Future<void> toggleCompleted(String id) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
-
-    final updated = _tasks[index].copyWith(
-      isCompleted: !_tasks[index].isCompleted,
-    );
+    final updated = _tasks[index].copyWith(isCompleted: !_tasks[index].isCompleted);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
     notifyListeners();
