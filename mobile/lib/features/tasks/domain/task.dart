@@ -51,4 +51,45 @@ class Task {
       isCompleted: isCompleted ?? this.isCompleted,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'notes': notes,
+      'dueAt': dueAt?.toIso8601String(),
+      'reminderType': reminderType.name,
+      'reminderIntervalMinutes': reminderInterval?.inMinutes,
+      'priority': priority.name,
+      'isCompleted': isCompleted,
+    };
+  }
+
+  factory Task.fromJson(Map<String, dynamic> json) {
+    final reminderName = json['reminderType'] as String?;
+    final priorityName = json['priority'] as String?;
+    final reminderType = TaskReminderType.values.firstWhere(
+      (value) => value.name == reminderName,
+      orElse: () => TaskReminderType.none,
+    );
+    final priority = TaskPriority.values.firstWhere(
+      (value) => value.name == priorityName,
+      orElse: () => TaskPriority.normal,
+    );
+    final intervalMinutes = json['reminderIntervalMinutes'] as int?;
+    final dueAtText = json['dueAt'] as String?;
+
+    return Task(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      notes: json['notes'] as String? ?? '',
+      dueAt: dueAtText == null ? null : DateTime.tryParse(dueAtText),
+      reminderType: reminderType,
+      reminderInterval: intervalMinutes == null
+          ? null
+          : Duration(minutes: intervalMinutes),
+      priority: priority,
+      isCompleted: json['isCompleted'] as bool? ?? false,
+    );
+  }
 }
