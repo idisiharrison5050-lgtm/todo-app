@@ -1,6 +1,6 @@
 # Todo & Reminder App
 
-A cross-platform task and reminder product being built with a Laravel 13 backend and a future Flutter client for iOS and Android.
+A cross-platform task and reminder product being built with a Laravel 13 backend and a Flutter client for iOS and Android.
 
 ## Current foundation
 
@@ -15,10 +15,12 @@ A cross-platform task and reminder product being built with a Laravel 13 backend
 - CSRF protection for web forms
 - Server-side validation
 - SQLite for local development
+- Reminder domain and timezone-aware scheduling contract
+- Flutter 3.47.2 local development project under `C:\src\todo_mobile`
 
 ## Product direction
 
-The MVP is not only a todo website. The target product is an installable iOS/Android task and reminder app with dependable local notifications, recurring reminders, offline operation, synchronization, and a polished mobile-first experience.
+The MVP is an installable iOS/Android task and reminder app with dependable local notifications, recurring reminders, offline operation, synchronization, and a polished mobile-first experience. The Laravel backend is the synchronization/security boundary; the mobile client handles UI, local storage, and device notification scheduling.
 
 Read the engineering plan before adding major features:
 
@@ -29,8 +31,9 @@ Read the engineering plan before adding major features:
 - `docs/DEVELOPMENT.md` — engineering workflow
 - `docs/TESTING.md` — test strategy
 - `docs/ROADMAP.md` — phased implementation roadmap
+- `docs/PLATFORM_NOTIFICATIONS.md` — iOS/Android notification rules
 
-## Local setup
+## Local Laravel setup
 
 Requirements: PHP 8.3+, Composer, and the PHP SQLite extension.
 
@@ -46,9 +49,24 @@ php artisan serve
 
 Then open `http://127.0.0.1:8000`.
 
+## Flutter development
+
+The mobile client is currently developed locally in `C:\src\todo_mobile` using Flutter 3.47.2.
+
+```powershell
+cd C:\src\todo_mobile
+flutter pub get
+flutter analyze
+flutter devices
+```
+
+The Android toolchain is configured and SDK licenses are accepted. Visual Studio is intentionally not required because Windows desktop is not an MVP target.
+
+The local Flutter project is connected to this GitHub repository as its `origin`. Before pushing, review whether a file belongs in the backend repository and keep generated/build artifacts out of Git.
+
 ## Mobile API
 
-The mobile client will authenticate through Laravel Sanctum using bearer tokens. Tokens should be stored only in OS-backed secure storage on the eventual Flutter client.
+The mobile client authenticates through Laravel Sanctum using bearer tokens. Tokens must be stored only in OS-backed secure storage on the Flutter client.
 
 ### Register
 
@@ -96,8 +114,10 @@ Task endpoints:
 - `GET /api/v1/me`
 - `POST /api/v1/auth/logout`
 
+Reminder endpoints are documented in the API controllers and reminder test suite and will be consumed by the Flutter reminder layer.
+
 ## Important
 
-The API is a foundation for the mobile application. Local notification scheduling, offline storage, sync conflict handling, reminder recurrence, and the Flutter client are deliberately being built as separate phases. Do not treat the current API as the finished MVP.
+The current mobile project is a local working tree and is not yet committed from this machine. Do not force-push or overwrite the existing backend history. First reconcile the local Flutter project with the GitHub repository history, then create a clean baseline commit.
 
 Production deployments must use HTTPS, production secret management, a production database, backups, monitoring, and a final security/privacy review.
