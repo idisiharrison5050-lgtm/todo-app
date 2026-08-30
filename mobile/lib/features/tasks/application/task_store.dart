@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/task_repository.dart';
 import '../data/task_repository_factory.dart';
@@ -6,6 +7,8 @@ import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
   TaskStore({TaskRepository? repository}) : _repository = repository ?? createTaskRepository();
+
+  static const Uuid _uuid = Uuid();
 
   final TaskRepository _repository;
   final List<Task> _tasks = <Task>[];
@@ -33,7 +36,7 @@ class TaskStore extends ChangeNotifier {
     TaskPriority priority = TaskPriority.normal,
   }) async {
     final task = Task(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: _uuid.v4(),
       title: title.trim(),
       notes: notes.trim(),
       dueAt: dueAt,
