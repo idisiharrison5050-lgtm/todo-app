@@ -1,19 +1,29 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../reminders/application/reminder_scheduler.dart';
 import '../data/task_repository.dart';
 import '../data/task_repository_factory.dart';
 import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
-  TaskStore({TaskRepository? repository})
-      : _repository = repository ?? createTaskRepository();
+  TaskStore({
+    TaskRepository? repository,
+    ReminderScheduler? reminderScheduler,
+  })  : _repository = repository ?? createTaskRepository(),
+        _reminderScheduler = reminderScheduler ?? _createReminderScheduler();
 
   static const Uuid _uuid = Uuid();
 
   final TaskRepository _repository;
+  final ReminderScheduler _reminderScheduler;
   final List<Task> _tasks = <Task>[];
   bool _isLoaded = false;
+
+  static ReminderScheduler _createReminderScheduler() {
+    if (kIsWeb) return NoopReminderScheduler();
+    return LocalReminderScheduler();
+  }
 
   List<Task> get tasks => List.unmodifiable(_tasks);
   bool get isLoaded => _isLoaded;
@@ -52,6 +62,7 @@ class TaskStore extends ChangeNotifier {
     );
     await _repository.saveTask(task);
     _tasks.add(task);
+    await _syncReminder(task);
     notifyListeners();
   }
 
@@ -82,6 +93,7 @@ class TaskStore extends ChangeNotifier {
     );
     await _repository.saveTask(updated);
     _tasks[index] = updated;
+    await _syncReminder(updated);
     notifyListeners();
   }
 
@@ -91,13 +103,30 @@ class TaskStore extends ChangeNotifier {
     final updated = _tasks[index].copyWith(isCompleted: !_tasks[index].isCompleted);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
+    if (updated.isCompleted) {
+      await _reminderScheduler.cancel(updated.id);
+    } else {
+      await _syncReminder(updated);
+    }
     notifyListeners();
   }
 
   Future<void> deleteTask(String id) async {
     await _repository.deleteTask(id);
     _tasks.removeWhere((task) => task.id == id);
+    await _reminderScheduler.cancel(id);
     notifyListeners();
+  }
+
+  Future<void> _syncReminder(Task task) async {
+    if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) {
+      await _reminderScheduler.cancel(task.id);
+      return;
+    }
+
+    final permitted = await _reminderScheduler.requestPermission();
+    if (!permitted && !kIsWeb) return;
+    await _reminderScheduler.schedule(task);
   }
 
   @override
