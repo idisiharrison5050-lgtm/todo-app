@@ -19,6 +19,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   TaskPriority _priority = TaskPriority.normal;
   TaskReminderType _reminderType = TaskReminderType.none;
   Duration? _interval = const Duration(hours: 2);
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -48,7 +49,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
+
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,15 +60,24 @@ class _AddTaskPageState extends State<AddTaskPage> {
       return;
     }
 
-    widget.store.addTask(
-      title: title,
-      notes: _notesController.text,
-      dueAt: _dueAt,
-      reminderType: _reminderType,
-      reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
-      priority: _priority,
-    );
-    Navigator.of(context).pop();
+    setState(() => _isSaving = true);
+    try {
+      await widget.store.addTask(
+        title: title,
+        notes: _notesController.text,
+        dueAt: _dueAt,
+        reminderType: _reminderType,
+        reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
+        priority: _priority,
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the task. Try again.')),
+      );
+    }
   }
 
   @override
@@ -76,7 +88,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       appBar: AppBar(
         title: const Text('New task'),
         actions: [
-          TextButton(onPressed: _save, child: const Text('Save')),
+          TextButton(onPressed: _isSaving ? null : _save, child: const Text('Save')),
         ],
       ),
       body: ListView(
@@ -86,10 +98,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             controller: _titleController,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'What needs to be done?',
-              prefixIcon: Icon(Icons.check_circle_outline),
-            ),
+            decoration: const InputDecoration(hintText: 'What needs to be done?', prefixIcon: Icon(Icons.check_circle_outline)),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -97,10 +106,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             minLines: 2,
             maxLines: 5,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Notes (optional)',
-              prefixIcon: Icon(Icons.notes_outlined),
-            ),
+            decoration: const InputDecoration(hintText: 'Notes (optional)', prefixIcon: Icon(Icons.notes_outlined)),
           ),
           const SizedBox(height: 28),
           Text('Schedule', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
@@ -154,9 +160,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ),
           const SizedBox(height: 36),
           FilledButton.icon(
-            onPressed: _save,
+            onPressed: _isSaving ? null : _save,
             icon: const Icon(Icons.add_task),
-            label: const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Create task')),
+            label: Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text(_isSaving ? 'Saving…' : 'Create task')),
           ),
         ],
       ),
