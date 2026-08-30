@@ -21,54 +21,30 @@ class TodayPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Today',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.8,
-                            ),
-                          ),
+                          Text('Today', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.8)),
                           const SizedBox(height: 4),
-                          Text(
-                            'Sunday, August 30',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                          Text('Sunday, August 30', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ),
                     ),
-                    IconButton.filledTonal(
-                      tooltip: 'Settings',
-                      onPressed: () {},
-                      icon: const Icon(Icons.settings_outlined),
-                    ),
+                    IconButton.filledTonal(tooltip: 'Settings', onPressed: () {}, icon: const Icon(Icons.settings_outlined)),
                   ],
                 ),
               ),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              sliver: SliverToBoxAdapter(
-                child: _ProgressCard(),
-              ),
+              sliver: SliverToBoxAdapter(child: _ProgressCard()),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               sliver: SliverToBoxAdapter(
-                child: Text(
-                  'Your tasks',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w750,
-                  ),
-                ),
+                child: Text('Your tasks', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
               ),
             ),
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 120),
-              sliver: SliverToBoxAdapter(
-                child: _EmptyTasks(),
-              ),
+              sliver: SliverToBoxAdapter(child: _EmptyTasks()),
             ),
           ],
         ),
@@ -86,7 +62,6 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-
     return Card(
       color: scheme.primaryContainer,
       child: Padding(
@@ -96,35 +71,17 @@ class _ProgressCard extends StatelessWidget {
             Container(
               width: 52,
               height: 52,
-              decoration: BoxDecoration(
-                color: scheme.primary,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_rounded,
-                color: scheme.onPrimary,
-                size: 28,
-              ),
+              decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+              child: Icon(Icons.check_rounded, color: scheme.onPrimary, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'A fresh start',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
+                  Text('A fresh start', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
                   const SizedBox(height: 4),
-                  Text(
-                    'Add your first task for today.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
+                  Text('Add your first task for today.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer)),
                 ],
               ),
             ),
@@ -141,36 +98,16 @@ class _EmptyTasks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(border: Border.all(color: theme.colorScheme.outlineVariant), borderRadius: BorderRadius.circular(24)),
       child: Column(
         children: [
-          Icon(
-            Icons.task_alt_rounded,
-            size: 48,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(Icons.task_alt_rounded, size: 48, color: theme.colorScheme.primary),
           const SizedBox(height: 16),
-          Text(
-            'Nothing planned yet',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text('Nothing planned yet', textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text(
-            'Add a task and choose when you want Todo to remind you.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text('Add a task and choose when you want Todo to remind you.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );
