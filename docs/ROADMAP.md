@@ -49,11 +49,12 @@
 ## Stage 5 — Flutter
 - [ ] iOS project
 - [ ] Android project
-- [ ] App architecture
-- [ ] Secure storage
-- [ ] Local database
-- [ ] API client
-- [ ] Local notification integration
+- [x] Mobile architecture documented
+- [ ] Secure storage implementation
+- [ ] Local database implementation
+- [ ] API client implementation
+- [ ] Local notification implementation
+- [x] Platform notification requirements documented
 
 ## Stage 6 — Premium MVP UX
 - [ ] Design system
@@ -112,4 +113,4 @@
 - [ ] Rollback plan
 - [ ] Final security review
 
-**Current position:** Backend reminder domain is implemented and tested at the unit/API level. The next engineering milestone is the Flutter client foundation and local notification scheduling.
+**Current position:** Backend reminder domain and API are implemented. Mobile architecture and platform notification requirements are documented. The next implementation step is generating the Flutter project and building its secure API/storage/notification foundations.
