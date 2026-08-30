@@ -4,22 +4,37 @@ import '../application/task_store.dart';
 import '../domain/task.dart';
 
 class AddTaskPage extends StatefulWidget {
-  const AddTaskPage({super.key, required this.store});
+  const AddTaskPage({super.key, required this.store, this.task});
 
   final TaskStore store;
+  final Task? task;
+
+  bool get isEditing => task != null;
 
   @override
   State<AddTaskPage> createState() => _AddTaskPageState();
 }
 
 class _AddTaskPageState extends State<AddTaskPage> {
-  final _titleController = TextEditingController();
-  final _notesController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _notesController;
   DateTime? _dueAt;
   TaskPriority _priority = TaskPriority.normal;
   TaskReminderType _reminderType = TaskReminderType.none;
   Duration? _interval = const Duration(hours: 2);
-  bool _isSaving = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final task = widget.task;
+    _titleController = TextEditingController(text: task?.title ?? '');
+    _notesController = TextEditingController(text: task?.notes ?? '');
+    _dueAt = task?.dueAt;
+    _priority = task?.priority ?? TaskPriority.normal;
+    _reminderType = task?.reminderType ?? TaskReminderType.none;
+    _interval = task?.reminderInterval ?? const Duration(hours: 2);
+  }
 
   @override
   void dispose() {
@@ -42,7 +57,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(_dueAt ?? now),
     );
-    if (time == null) return;
+    if (time == null || !mounted) return;
 
     setState(() {
       _dueAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -50,7 +65,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   Future<void> _save() async {
-    if (_isSaving) return;
+    if (_saving) return;
 
     final title = _titleController.text.trim();
     if (title.isEmpty) {
@@ -60,20 +75,32 @@ class _AddTaskPageState extends State<AddTaskPage> {
       return;
     }
 
-    setState(() => _isSaving = true);
+    setState(() => _saving = true);
     try {
-      await widget.store.addTask(
-        title: title,
-        notes: _notesController.text,
-        dueAt: _dueAt,
-        reminderType: _reminderType,
-        reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
-        priority: _priority,
-      );
+      if (widget.task == null) {
+        await widget.store.addTask(
+          title: title,
+          notes: _notesController.text,
+          dueAt: _dueAt,
+          reminderType: _reminderType,
+          reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
+          priority: _priority,
+        );
+      } else {
+        await widget.store.updateTask(
+          widget.task!.id,
+          title: title,
+          notes: _notesController.text,
+          dueAt: _dueAt,
+          reminderType: _reminderType,
+          reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
+          priority: _priority,
+        );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isSaving = false);
+      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not save the task. Try again.')),
       );
@@ -86,9 +113,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New task'),
+        title: Text(widget.isEditing ? 'Edit task' : 'New task'),
         actions: [
-          TextButton(onPressed: _isSaving ? null : _save, child: const Text('Save')),
+          TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
         ],
       ),
       body: ListView(
@@ -96,9 +123,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
         children: [
           TextField(
             controller: _titleController,
-            autofocus: true,
+            autofocus: !widget.isEditing,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(hintText: 'What needs to be done?', prefixIcon: Icon(Icons.check_circle_outline)),
+            decoration: const InputDecoration(
+              hintText: 'What needs to be done?',
+              prefixIcon: Icon(Icons.check_circle_outline),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -106,7 +136,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
             minLines: 2,
             maxLines: 5,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(hintText: 'Notes (optional)', prefixIcon: Icon(Icons.notes_outlined)),
+            decoration: const InputDecoration(
+              hintText: 'Notes (optional)',
+              prefixIcon: Icon(Icons.notes_outlined),
+            ),
           ),
           const SizedBox(height: 28),
           Text('Schedule', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
@@ -116,7 +149,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
             leading: const Icon(Icons.schedule_outlined),
             title: Text(_dueAt == null ? 'Set date & time' : _formatDateTime(_dueAt!)),
             subtitle: const Text('Choose when this task is due'),
-            trailing: _dueAt == null ? const Icon(Icons.chevron_right) : IconButton(onPressed: () => setState(() => _dueAt = null), icon: const Icon(Icons.close)),
+            trailing: _dueAt == null
+                ? const Icon(Icons.chevron_right)
+                : IconButton(
+                    tooltip: 'Clear due date',
+                    onPressed: () => setState(() => _dueAt = null),
+                    icon: const Icon(Icons.close),
+                  ),
             onTap: _pickDateTime,
           ),
           const Divider(height: 24),
@@ -160,9 +199,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ),
           const SizedBox(height: 36),
           FilledButton.icon(
-            onPressed: _isSaving ? null : _save,
+            onPressed: _saving ? null : _save,
             icon: const Icon(Icons.add_task),
-            label: Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text(_isSaving ? 'Saving…' : 'Create task')),
+            label: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Text(_saving ? 'Saving…' : widget.isEditing ? 'Save changes' : 'Create task'),
+            ),
           ),
         ],
       ),
