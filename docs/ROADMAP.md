@@ -9,26 +9,26 @@
 - [ ] Review and approve plan
 
 ## Stage 1 — Backend Foundation
-- [ ] Confirm Laravel/PHP baseline
-- [ ] Database migrations
-- [ ] API v1 foundation
-- [ ] Error/validation conventions
-- [ ] Rate limiting
+- [x] Confirm Laravel/PHP baseline
+- [x] Database migrations for users/tasks/tokens
+- [x] API v1 foundation
+- [x] Authentication/error validation foundation
+- [x] Login rate limiting baseline
 - [ ] CI/security checks
 - [ ] Health/observability baseline
 
 ## Stage 2 — Identity
-- [ ] Registration
-- [ ] Login
-- [ ] Logout/revocation
+- [x] Registration
+- [x] Login
+- [x] Logout/revocation
 - [ ] Password reset
 - [ ] Secure mobile credential storage
 - [ ] Authorization tests
 
 ## Stage 3 — Tasks
-- [ ] Task model
-- [ ] Task CRUD API
-- [ ] Ownership policies
+- [x] Task model
+- [x] Task CRUD API
+- [x] User ownership enforcement
 - [ ] Today/upcoming queries
 - [ ] Filters/search
 - [ ] Backend tests
@@ -108,4 +108,4 @@
 - [ ] Rollback plan
 - [ ] Final security review
 
-**Current target:** Complete Stages 1–10 before public store submission.
+**Current position:** Stages 1–3 foundation is substantially implemented. The next engineering milestone is the reminder domain and scheduling design, followed by the Flutter client.
