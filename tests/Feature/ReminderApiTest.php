@@ -29,7 +29,7 @@ class ReminderApiTest extends TestCase
             'snooze_minutes' => 10,
         ]);
 
-        $response->assertCreated()->assertJsonPath('data.task_id', $task->id);
+        $response->assertCreated()->assertJsonPath('task_id', $task->id);
         $this->assertDatabaseHas('reminders', ['task_id' => $task->id, 'user_id' => $user->id]);
     }
 
