@@ -5,6 +5,7 @@ import 'package:todo_mobile/app/app.dart';
 void main() {
   testWidgets('renders the Today screen', (WidgetTester tester) async {
     await tester.pumpWidget(const TodoApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('Your tasks'), findsOneWidget);
