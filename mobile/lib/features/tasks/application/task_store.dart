@@ -1,79 +1,75 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/preferences_task_repository.dart';
+import '../data/task_repository.dart';
 import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
-  static const _storageKey = 'todo.tasks.v1';
+  TaskStore({TaskRepository? repository})
+      : _repository = repository ?? PreferencesTaskRepository();
 
+  final TaskRepository _repository;
   final List<Task> _tasks = <Task>[];
-  SharedPreferences? _preferences;
+  bool _isLoaded = false;
 
   List<Task> get tasks => List.unmodifiable(_tasks);
+  bool get isLoaded => _isLoaded;
 
   Future<void> load() async {
-    _preferences = await SharedPreferences.getInstance();
-    final raw = _preferences?.getString(_storageKey);
-    if (raw == null || raw.isEmpty) return;
+    if (_isLoaded) return;
 
-    try {
-      final decoded = jsonDecode(raw) as List<dynamic>;
-      _tasks
-        ..clear()
-        ..addAll(
-          decoded.map(
-            (item) => Task.fromJson(Map<String, dynamic>.from(item as Map)),
-          ),
-        );
-      notifyListeners();
-    } on FormatException {
-      // Ignore corrupted local data rather than crashing the app.
-    } on TypeError {
-      // Ignore malformed local data rather than crashing the app.
-    }
+    final loaded = await _repository.getTasks();
+    _tasks
+      ..clear()
+      ..addAll(loaded);
+    _isLoaded = true;
+    notifyListeners();
   }
 
-  void addTask({
+  Future<void> addTask({
     required String title,
     String notes = '',
     DateTime? dueAt,
     TaskReminderType reminderType = TaskReminderType.none,
     Duration? reminderInterval,
     TaskPriority priority = TaskPriority.normal,
-  }) {
-    _tasks.add(
-      Task(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: title.trim(),
-        notes: notes.trim(),
-        dueAt: dueAt,
-        reminderType: reminderType,
-        reminderInterval: reminderInterval,
-        priority: priority,
-      ),
+  }) async {
+    final task = Task(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: title.trim(),
+      notes: notes.trim(),
+      dueAt: dueAt,
+      reminderType: reminderType,
+      reminderInterval: reminderInterval,
+      priority: priority,
     );
-    _persist();
+
+    await _repository.saveTask(task);
+    _tasks.add(task);
     notifyListeners();
   }
 
-  void toggleCompleted(String id) {
+  Future<void> toggleCompleted(String id) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
 
-    _tasks[index] = _tasks[index].copyWith(
+    final updated = _tasks[index].copyWith(
       isCompleted: !_tasks[index].isCompleted,
     );
-    _persist();
+    await _repository.saveTask(updated);
+    _tasks[index] = updated;
     notifyListeners();
   }
 
-  Future<void> _persist() async {
-    final preferences = _preferences;
-    if (preferences == null) return;
+  Future<void> deleteTask(String id) async {
+    await _repository.deleteTask(id);
+    _tasks.removeWhere((task) => task.id == id);
+    notifyListeners();
+  }
 
-    final encoded = jsonEncode(_tasks.map((task) => task.toJson()).toList());
-    await preferences.setString(_storageKey, encoded);
+  @override
+  void dispose() {
+    _repository.close();
+    super.dispose();
   }
 }
