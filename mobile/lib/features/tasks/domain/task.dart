@@ -34,9 +34,9 @@ class Task {
   Task copyWith({
     String? title,
     String? notes,
-    DateTime? dueAt,
+    Object? dueAt = _copyWithUnspecified,
     TaskReminderType? reminderType,
-    Duration? reminderInterval,
+    Object? reminderInterval = _copyWithUnspecified,
     TaskPriority? priority,
     bool? isCompleted,
   }) {
@@ -44,9 +44,11 @@ class Task {
       id: id,
       title: title ?? this.title,
       notes: notes ?? this.notes,
-      dueAt: dueAt ?? this.dueAt,
+      dueAt: identical(dueAt, _copyWithUnspecified) ? this.dueAt : dueAt as DateTime?,
       reminderType: reminderType ?? this.reminderType,
-      reminderInterval: reminderInterval ?? this.reminderInterval,
+      reminderInterval: identical(reminderInterval, _copyWithUnspecified)
+          ? this.reminderInterval
+          : reminderInterval as Duration?,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
     );
@@ -85,11 +87,11 @@ class Task {
       notes: json['notes'] as String? ?? '',
       dueAt: dueAtText == null ? null : DateTime.tryParse(dueAtText),
       reminderType: reminderType,
-      reminderInterval: intervalMinutes == null
-          ? null
-          : Duration(minutes: intervalMinutes),
+      reminderInterval: intervalMinutes == null ? null : Duration(minutes: intervalMinutes),
       priority: priority,
       isCompleted: json['isCompleted'] as bool? ?? false,
     );
   }
 }
+
+const Object _copyWithUnspecified = Object();
