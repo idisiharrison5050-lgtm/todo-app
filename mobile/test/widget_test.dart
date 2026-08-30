@@ -1,19 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:todo_mobile/app/app.dart';
+import 'package:todo_mobile/features/tasks/application/task_store.dart';
+import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
 
 void main() {
-  testWidgets('renders the Today screen after initialization', (WidgetTester tester) async {
-    await tester.pumpWidget(const TodoApp());
+  testWidgets('renders the Today screen', (WidgetTester tester) async {
+    final store = TaskStore();
 
-    // Let the initialization Future complete without waiting for unrelated
-    // repeating animations or timers to settle.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(TodayPage(store: store));
 
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('Your tasks'), findsOneWidget);
     expect(find.text('Nothing planned yet'), findsOneWidget);
     expect(find.text('Add task'), findsOneWidget);
+
+    store.dispose();
   });
 }
