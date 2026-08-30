@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:todo_mobile/features/tasks/application/task_store.dart';
+import 'package:todo_mobile/features/tasks/data/preferences_task_repository.dart';
 import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
 
 void main() {
   testWidgets('renders the Today screen', (WidgetTester tester) async {
-    final store = TaskStore();
+    final store = TaskStore(repository: PreferencesTaskRepository());
 
     await tester.pumpWidget(
       MaterialApp(
