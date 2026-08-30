@@ -1,11 +1,33 @@
 import 'package:flutter/material.dart';
 
+import '../application/task_store.dart';
+import '../domain/task.dart';
+import 'add_task_page.dart';
+
 class TodayPage extends StatelessWidget {
-  const TodayPage({super.key});
+  const TodayPage({super.key, required this.store});
+
+  final TaskStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: store,
+      builder: (context, _) => _TodayContent(store: store),
+    );
+  }
+}
+
+class _TodayContent extends StatelessWidget {
+  const _TodayContent({required this.store});
+
+  final TaskStore store;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tasks = store.tasks;
+    final completed = tasks.where((task) => task.isCompleted).length;
 
     return Scaffold(
       body: SafeArea(
@@ -34,7 +56,7 @@ class TodayPage extends StatelessWidget {
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              sliver: SliverToBoxAdapter(child: _ProgressCard()),
+              sliver: SliverToBoxAdapter(child: _ProgressCard(total: tasks.length, completed: completed)),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -42,15 +64,25 @@ class TodayPage extends StatelessWidget {
                 child: Text('Your tasks', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
               ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 120),
-              sliver: SliverToBoxAdapter(child: _EmptyTasks()),
-            ),
+            if (tasks.isEmpty)
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 8, 20, 120),
+                sliver: SliverToBoxAdapter(child: _EmptyTasks()),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                sliver: SliverList.separated(
+                  itemCount: tasks.length,
+                  itemBuilder: (context, index) => _TaskTile(task: tasks[index], onToggle: () => store.toggleCompleted(tasks[index].id)),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                ),
+              ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: store))),
         icon: const Icon(Icons.add),
         label: const Text('Add task'),
       ),
@@ -59,34 +91,49 @@ class TodayPage extends StatelessWidget {
 }
 
 class _ProgressCard extends StatelessWidget {
+  const _ProgressCard({required this.total, required this.completed});
+
+  final int total;
+  final int completed;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final message = total == 0 ? 'Add your first task for today.' : '$completed of $total tasks completed.';
     return Card(
       color: scheme.primaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
-              child: Icon(Icons.check_rounded, color: scheme.onPrimary, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('A fresh start', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
-                  const SizedBox(height: 4),
-                  Text('Add your first task for today.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer)),
-                ],
-              ),
-            ),
-          ],
-        ),
+        child: Row(children: [
+          Container(width: 52, height: 52, decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle), child: Icon(Icons.check_rounded, color: scheme.onPrimary, size: 28)),
+          const SizedBox(width: 16),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(total == 0 ? 'A fresh start' : 'Keep going', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
+            const SizedBox(height: 4),
+            Text(message, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer)),
+          ])),
+        ]),
+      ),
+    );
+  }
+}
+
+class _TaskTile extends StatelessWidget {
+  const _TaskTile({required this.task, required this.onToggle});
+
+  final Task task;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading: Checkbox(value: task.isCompleted, onChanged: (_) => onToggle()),
+        title: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700)),
+        subtitle: task.dueAt == null ? null : Text('Due ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}'),
+        trailing: task.reminderType == TaskReminderType.none ? null : const Icon(Icons.notifications_active_outlined),
       ),
     );
   }
@@ -101,15 +148,13 @@ class _EmptyTasks extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       decoration: BoxDecoration(border: Border.all(color: theme.colorScheme.outlineVariant), borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        children: [
-          Icon(Icons.task_alt_rounded, size: 48, color: theme.colorScheme.primary),
-          const SizedBox(height: 16),
-          Text('Nothing planned yet', textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text('Add a task and choose when you want Todo to remind you.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ],
-      ),
+      child: Column(children: [
+        Icon(Icons.task_alt_rounded, size: 48, color: theme.colorScheme.primary),
+        const SizedBox(height: 16),
+        Text('Nothing planned yet', textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text('Add a task and choose when you want Todo to remind you.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ]),
     );
   }
 }
