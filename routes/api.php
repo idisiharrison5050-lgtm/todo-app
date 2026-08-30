@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ReminderController;
 use App\Http\Controllers\Api\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,5 +17,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/tasks', [TaskController::class, 'store']);
         Route::patch('/tasks/{task}', [TaskController::class, 'update']);
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+
+        Route::get('/reminders', [ReminderController::class, 'index']);
+        Route::post('/reminders', [ReminderController::class, 'store']);
+        Route::patch('/reminders/{reminder}', [ReminderController::class, 'update']);
+        Route::delete('/reminders/{reminder}', [ReminderController::class, 'destroy']);
     });
 });
