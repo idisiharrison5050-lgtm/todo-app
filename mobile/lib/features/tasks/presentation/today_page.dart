@@ -74,7 +74,30 @@ class _TodayContent extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                 sliver: SliverList.separated(
                   itemCount: tasks.length,
-                  itemBuilder: (context, index) => _TaskTile(task: tasks[index], onToggle: () => store.toggleCompleted(tasks[index].id)),
+                  itemBuilder: (context, index) => Dismissible(
+                    key: ValueKey(tasks[index].id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 24),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(Icons.delete_outline, color: theme.colorScheme.onErrorContainer),
+                    ),
+                    confirmDismiss: (_) async => await _confirmDelete(context, tasks[index]),
+                    onDismissed: (_) => store.deleteTask(tasks[index].id),
+                    child: _TaskTile(
+                      task: tasks[index],
+                      onToggle: () => store.toggleCompleted(tasks[index].id),
+                      onEdit: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AddTaskPage(store: store, task: tasks[index]),
+                        ),
+                      ),
+                    ),
+                  ),
                   separatorBuilder: (context, index) => const SizedBox(height: 10),
                 ),
               ),
@@ -87,6 +110,21 @@ class _TodayContent extends StatelessWidget {
         label: const Text('Add task'),
       ),
     );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, Task task) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete task?'),
+        content: Text('Delete “${task.title}”? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          FilledButton.tonal(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 }
 
@@ -119,10 +157,11 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _TaskTile extends StatelessWidget {
-  const _TaskTile({required this.task, required this.onToggle});
+  const _TaskTile({required this.task, required this.onToggle, required this.onEdit});
 
   final Task task;
   final VoidCallback onToggle;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -131,10 +170,27 @@ class _TaskTile extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading: Checkbox(value: task.isCompleted, onChanged: (_) => onToggle()),
         title: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700)),
-        subtitle: task.dueAt == null ? null : Text('Due ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}'),
-        trailing: task.reminderType == TaskReminderType.none ? null : const Icon(Icons.notifications_active_outlined),
+        subtitle: _subtitle(context),
+        trailing: Wrap(
+          spacing: 0,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (task.reminderType != TaskReminderType.none) const Icon(Icons.notifications_active_outlined),
+            IconButton(tooltip: 'Edit task', onPressed: onEdit, icon: const Icon(Icons.more_horiz)),
+          ],
+        ),
+        onTap: onEdit,
       ),
     );
+  }
+
+  Widget? _subtitle(BuildContext context) {
+    final parts = <String>[];
+    if (task.dueAt != null) {
+      parts.add('Due ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}');
+    }
+    if (task.priority == TaskPriority.high) parts.add('High priority');
+    return parts.isEmpty ? null : Text(parts.join(' • '));
   }
 }
 
