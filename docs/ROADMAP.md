@@ -6,7 +6,7 @@
 - [x] Define architecture
 - [x] Define security baseline
 - [x] Define testing strategy
-- [ ] Review and approve plan
+- [x] Review plan through implementation
 
 ## Stage 1 — Backend Foundation
 - [x] Confirm Laravel/PHP baseline
@@ -23,7 +23,7 @@
 - [x] Logout/revocation
 - [ ] Password reset
 - [ ] Secure mobile credential storage
-- [ ] Authorization tests
+- [x] Basic authorization isolation tests
 
 ## Stage 3 — Tasks
 - [x] Task model
@@ -31,16 +31,20 @@
 - [x] User ownership enforcement
 - [ ] Today/upcoming queries
 - [ ] Filters/search
-- [ ] Backend tests
+- [ ] Backend task test suite
 
 ## Stage 4 — Reminders
-- [ ] Reminder model
-- [ ] One-time scheduling
-- [ ] Recurrence rules
-- [ ] Timezone handling
-- [ ] Snooze
-- [ ] Notification lifecycle
-- [ ] Reminder tests
+- [x] Reminder model
+- [x] One-time scheduling contract
+- [x] Daily/weekly/selected-weekday recurrence contract
+- [x] Explicit timezone storage
+- [x] Snooze configuration storage
+- [x] Reminder CRUD API
+- [x] Reminder authorization tests
+- [x] Recurrence unit tests
+- [ ] Mobile notification scheduling
+- [ ] Notification lifecycle handling
+- [ ] DST/timezone integration tests
 
 ## Stage 5 — Flutter
 - [ ] iOS project
@@ -49,7 +53,7 @@
 - [ ] Secure storage
 - [ ] Local database
 - [ ] API client
-- [ ] Notification integration
+- [ ] Local notification integration
 
 ## Stage 6 — Premium MVP UX
 - [ ] Design system
@@ -108,4 +112,4 @@
 - [ ] Rollback plan
 - [ ] Final security review
 
-**Current position:** Stages 1–3 foundation is substantially implemented. The next engineering milestone is the reminder domain and scheduling design, followed by the Flutter client.
+**Current position:** Backend reminder domain is implemented and tested at the unit/API level. The next engineering milestone is the Flutter client foundation and local notification scheduling.
