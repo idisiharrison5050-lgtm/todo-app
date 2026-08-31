@@ -45,15 +45,19 @@ class TaskStore extends ChangeNotifier {
   }) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
-    if (dueAt != null && dueAt.isBefore(DateTime.now())) {
+    final normalizedDueAt = _normalizeDueAt(dueAt);
+    if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
+      throw ArgumentError('A repeating reminder must have a valid interval.');
     }
 
     final task = Task(
       id: _uuid.v4(),
       title: normalizedTitle,
       notes: notes.trim(),
-      dueAt: _normalizeDueAt(dueAt),
+      dueAt: normalizedDueAt,
       reminderType: reminderType,
       reminderInterval: reminderInterval,
       priority: priority,
@@ -77,14 +81,18 @@ class TaskStore extends ChangeNotifier {
     if (index == -1) return;
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
-    if (dueAt != null && dueAt.isBefore(DateTime.now())) {
+    final normalizedDueAt = _normalizeDueAt(dueAt);
+    if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
+      throw ArgumentError('A repeating reminder must have a valid interval.');
     }
 
     final updated = _tasks[index].copyWith(
       title: normalizedTitle,
       notes: notes.trim(),
-      dueAt: _normalizeDueAt(dueAt),
+      dueAt: normalizedDueAt,
       reminderType: reminderType,
       reminderInterval: reminderInterval,
       priority: priority,
@@ -117,7 +125,7 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> clearCompleted() async {
-    final completed = _tasks.where((task) => task.isCompleted).toList();
+    final completed = _tasks.where((task) => task.isCompleted).toList(growable: false);
     for (final task in completed) {
       await _repository.deleteTask(task.id);
       await _reminderScheduler.cancel(task.id);
@@ -127,8 +135,8 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> _syncReminder(Task task) async {
+    await _reminderScheduler.cancel(task.id);
     if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) {
-      await _reminderScheduler.cancel(task.id);
       return;
     }
     final permitted = await _reminderScheduler.requestPermission();
