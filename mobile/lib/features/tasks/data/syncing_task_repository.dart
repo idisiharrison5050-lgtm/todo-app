@@ -14,11 +14,17 @@ class SyncingTaskRepository implements TaskRepository {
     try {
       final remote = await _cloud.pull();
       final merged = <String, Task>{for (final task in local) task.id: task};
-      for (final task in remote) merged[task.id] = task;
+      for (final task in remote) {
+        merged[task.id] = task;
+      }
       final result = merged.values.toList(growable: false);
-      for (final task in result) await _local.saveTask(task);
+      for (final task in result) {
+        await _local.saveTask(task);
+      }
       final remoteIds = remote.map((task) => task.id).toSet();
-      for (final task in local.where((task) => !remoteIds.contains(task.id))) await _cloud.push(task);
+      for (final task in local.where((task) => !remoteIds.contains(task.id))) {
+        await _cloud.push(task);
+      }
       return result;
     } catch (_) {
       return local;
@@ -28,13 +34,17 @@ class SyncingTaskRepository implements TaskRepository {
   @override
   Future<void> saveTask(Task task) async {
     await _local.saveTask(task);
-    try { await _cloud.push(task); } catch (_) {}
+    try {
+      await _cloud.push(task);
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteTask(String id) async {
     await _local.deleteTask(id);
-    try { await _cloud.delete(id); } catch (_) {}
+    try {
+      await _cloud.delete(id);
+    } catch (_) {}
   }
 
   @override
