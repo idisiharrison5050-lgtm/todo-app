@@ -113,4 +113,65 @@ void main() {
 
     store.dispose();
   });
+
+  testWidgets('shows later-today tasks in Upcoming and filters by priority', (WidgetTester tester) async {
+    final store = createTestStore();
+    final now = DateTime.now();
+    final laterToday = now.add(const Duration(minutes: 20));
+    final tomorrow = now.add(const Duration(days: 1));
+
+    await store.addTask(
+      title: 'Later today task',
+      dueAt: DateTime(laterToday.year, laterToday.month, laterToday.day, laterToday.hour, laterToday.minute),
+      priority: TaskPriority.high,
+    );
+    await store.addTask(
+      title: 'Tomorrow low task',
+      dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9),
+      priority: TaskPriority.low,
+    );
+
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pump();
+    await tester.tap(find.text('Upcoming').first);
+    await tester.pump();
+
+    expect(find.text('Later today'), findsOneWidget);
+    expect(find.text('Later today task'), findsOneWidget);
+    expect(find.text('Tomorrow'), findsOneWidget);
+    expect(find.text('Tomorrow low task'), findsOneWidget);
+
+    await tester.tap(find.text('High'));
+    await tester.pump();
+    expect(find.text('Later today task'), findsOneWidget);
+    expect(find.text('Tomorrow low task'), findsNothing);
+
+    store.dispose();
+  });
+
+  testWidgets('shows overdue tasks in Today and keeps completed tasks out of active views', (WidgetTester tester) async {
+    final store = createTestStore();
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+
+    await store.addTask(
+      title: 'Overdue task',
+      dueAt: DateTime(yesterday.year, yesterday.month, yesterday.day, 9),
+    );
+    await store.addTask(title: 'Completed task');
+    await store.toggleCompleted(store.tasks.last.id);
+
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pump();
+
+    expect(find.text('Overdue task'), findsOneWidget);
+    expect(find.textContaining('Overdue'), findsOneWidget);
+    expect(find.text('Completed task'), findsNothing);
+
+    await tester.tap(find.text('Done').first);
+    await tester.pump();
+    expect(find.text('Completed task'), findsOneWidget);
+    expect(find.text('Overdue task'), findsNothing);
+
+    store.dispose();
+  });
 }
