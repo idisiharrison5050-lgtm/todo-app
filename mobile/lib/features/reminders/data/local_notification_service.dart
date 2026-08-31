@@ -11,6 +11,9 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _plugin;
   bool _initialized = false;
 
+  /// Set by the app so tapping a notification can open its task.
+  static void Function(String taskId)? onNotificationTap;
+
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
     tz.initializeTimeZones();
@@ -24,6 +27,12 @@ class LocalNotificationService {
 
     await _plugin.initialize(
       settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
+      onDidReceiveNotificationResponse: (response) {
+        final taskId = response.payload;
+        if (taskId != null && taskId.isNotEmpty) {
+          onNotificationTap?.call(taskId);
+        }
+      },
     );
 
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -57,6 +66,7 @@ class LocalNotificationService {
     required String title,
     required String body,
     required DateTime scheduledAt,
+    String? payload,
   }) async {
     await initialize();
     if (kIsWeb) return;
@@ -84,6 +94,7 @@ class LocalNotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
+      payload: payload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
