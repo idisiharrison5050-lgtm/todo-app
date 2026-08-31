@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:todo_mobile/features/reminders/application/reminder_scheduler.dart';
@@ -23,6 +24,8 @@ class FakeReminderScheduler implements ReminderScheduler {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('creates, updates, completes and deletes a task', () async {
     final repository = MemoryTaskRepository();
     final reminders = FakeReminderScheduler();
