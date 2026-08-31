@@ -31,7 +31,7 @@ void main() {
     await store.addTask(
       title: 'Test task',
       notes: 'Notes',
-      dueAt: DateTime(2026, 8, 31, 14, 2, 47),
+      dueAt: DateTime.now().add(const Duration(minutes: 5, seconds: 47)),
       reminderType: TaskReminderType.once,
       priority: TaskPriority.high,
     );
@@ -41,23 +41,28 @@ void main() {
     expect(created.title, 'Test task');
     expect(created.notes, 'Notes');
     expect(created.priority, TaskPriority.high);
-    expect(created.dueAt, DateTime(2026, 8, 31, 14, 2));
+    expect(created.dueAt!.second, 0);
+    expect(created.dueAt!.millisecond, 0);
+    expect(created.dueAt!.microsecond, 0);
     expect(reminders.scheduled, contains(created.id));
 
     await store.updateTask(
       created.id,
       title: 'Updated task',
-      dueAt: DateTime(2026, 9, 1, 9, 30, 59),
+      dueAt: DateTime.now().add(const Duration(minutes: 10, seconds: 59)),
       reminderType: TaskReminderType.none,
     );
 
     expect(store.tasks.single.title, 'Updated task');
-    expect(store.tasks.single.dueAt, DateTime(2026, 9, 1, 9, 30));
+    expect(store.tasks.single.dueAt!.second, 0);
     expect(reminders.cancelled, contains(created.id));
 
     await store.toggleCompleted(created.id);
     expect(store.tasks.single.isCompleted, isTrue);
     expect(reminders.cancelled, contains(created.id));
+
+    await store.toggleCompleted(created.id);
+    expect(store.tasks.single.isCompleted, isFalse);
 
     await store.deleteTask(created.id);
     expect(store.tasks, isEmpty);
@@ -79,5 +84,35 @@ void main() {
     expect(second.tasks, hasLength(1));
     expect(second.tasks.single.title, 'Persistent task');
     second.dispose();
+  });
+
+  test('rejects a reminder without a due time', () async {
+    final store = TaskStore(
+      repository: MemoryTaskRepository(),
+      reminderScheduler: FakeReminderScheduler(),
+    );
+
+    expect(
+      () => store.addTask(title: 'Reminder', reminderType: TaskReminderType.once),
+      throwsArgumentError,
+    );
+    store.dispose();
+  });
+
+  test('rejects an invalid repeating reminder interval', () async {
+    final store = TaskStore(
+      repository: MemoryTaskRepository(),
+      reminderScheduler: FakeReminderScheduler(),
+    );
+
+    expect(
+      () => store.addTask(
+        title: 'Repeat',
+        dueAt: DateTime.now().add(const Duration(minutes: 5)),
+        reminderType: TaskReminderType.interval,
+      ),
+      throwsArgumentError,
+    );
+    store.dispose();
   });
 }
