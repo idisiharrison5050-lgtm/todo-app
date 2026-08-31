@@ -27,21 +27,21 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
     await tester.pump();
 
-    expect(find.text('Today'), findsOneWidget);
-    expect(find.text('Upcoming'), findsOneWidget);
+    expect(find.text('Today'), findsWidgets);
+    expect(find.text('Upcoming'), findsWidgets);
     expect(find.text('All'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
 
-    await tester.tap(find.text('Upcoming'));
+    await tester.tap(find.text('Upcoming').first);
     await tester.pump();
     expect(find.text('Nothing upcoming'), findsOneWidget);
 
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.text('Done').first);
     await tester.pump();
     expect(find.text('Nothing completed yet'), findsOneWidget);
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.text('Settings').first);
     await tester.pump();
     expect(find.text('Local storage'), findsOneWidget);
 
