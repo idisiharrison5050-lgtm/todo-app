@@ -5,13 +5,11 @@ import 'package:todo_mobile/features/reminders/application/reminder_scheduler.da
 import 'package:todo_mobile/features/tasks/application/task_store.dart';
 import 'package:todo_mobile/features/tasks/data/task_repository_memory.dart';
 import 'package:todo_mobile/features/tasks/presentation/home_page.dart';
+import 'package:todo_mobile/features/tasks/presentation/task_detail_page.dart';
 import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
 
 TaskStore createTestStore() {
-  return TaskStore(
-    repository: MemoryTaskRepository(),
-    reminderScheduler: NoopReminderScheduler(),
-  );
+  return TaskStore(repository: MemoryTaskRepository(), reminderScheduler: NoopReminderScheduler());
 }
 
 void main() {
@@ -89,6 +87,29 @@ void main() {
     await tester.tap(find.text('Clear all'));
     await tester.pump();
     expect(find.text('Nothing completed yet'), findsOneWidget);
+
+    store.dispose();
+  });
+
+  testWidgets('groups upcoming tasks and opens task details', (WidgetTester tester) async {
+    final store = createTestStore();
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    await store.addTask(title: 'Tomorrow task', dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9));
+
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pump();
+    await tester.tap(find.text('Upcoming').first);
+    await tester.pump();
+
+    expect(find.text('Tomorrow'), findsOneWidget);
+    expect(find.text('Tomorrow task'), findsOneWidget);
+
+    await tester.tap(find.text('Tomorrow task'));
+    await tester.pump();
+    expect(find.text('Task details'), findsOneWidget);
+    expect(find.text('Schedule'), findsOneWidget);
+    expect(find.text('Priority'), findsOneWidget);
+    expect(find.byType(TaskDetailPage), findsOneWidget);
 
     store.dispose();
   });
