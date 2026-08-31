@@ -16,7 +16,6 @@ class LocalTaskDatabase implements TaskRepository {
   LocalTaskDatabase({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
 
   final TokenStorage _storage;
-  final TokenStorage _storage;
   Database? _database;
 
   Future<Database> get _db async {
