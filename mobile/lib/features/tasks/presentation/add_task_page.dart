@@ -53,18 +53,219 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
     if (date == null || !mounted) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_dueAt ?? now),
+    final selectedDate = DateTime(date.year, date.month, date.day);
+    final sameDay = selectedDate.year == now.year &&
+        selectedDate.month == now.month &&
+        selectedDate.day == now.day;
+    final minimum = now.add(const Duration(minutes: 1));
+    final defaultTime = sameDay
+        ? now.add(const Duration(minutes: 2))
+        : (_dueAt ?? DateTime(date.year, date.month, date.day, 9));
+
+    final time = await _showScrollTimePicker(
+      initialDateTime: defaultTime,
+      minimumDateTime: sameDay ? minimum : null,
     );
     if (time == null || !mounted) return;
 
+    final value = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+
+    if (sameDay && !_isSelectableTime(value, now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose at least 1 minute from now.')),
+      );
+      return;
+    }
+
     setState(() {
-      _dueAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _dueAt = value;
       if (_reminderType == TaskReminderType.none) {
         _reminderType = TaskReminderType.once;
       }
     });
+  }
+
+  Future<TimeOfDay?> _showScrollTimePicker({
+    required DateTime initialDateTime,
+    DateTime? minimumDateTime,
+  }) async {
+    final now = DateTime.now();
+    final defaultDateTime = minimumDateTime != null &&
+            initialDateTime.isBefore(minimumDateTime)
+        ? minimumDateTime.add(const Duration(minutes: 1))
+        : initialDateTime;
+    final initial = TimeOfDay.fromDateTime(defaultDateTime);
+    var selectedHour = initial.hourOfPeriod == 0 ? 12 : initial.hourOfPeriod;
+    var selectedMinute = initial.minute;
+    var selectedPeriod = initial.period;
+
+    final result = await showModalBottomSheet<TimeOfDay>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final hourController = FixedExtentScrollController(
+          initialItem: selectedHour - 1,
+        );
+        final minuteController = FixedExtentScrollController(
+          initialItem: selectedMinute,
+        );
+        final periodController = FixedExtentScrollController(
+          initialItem: selectedPeriod == DayPeriod.am ? 0 : 1,
+        );
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final candidate = _timeOfDayDateTime(
+              selectedHour,
+              selectedMinute,
+              selectedPeriod,
+            );
+            final valid = minimumDateTime == null ||
+                _isSelectableTime(candidate, minimumDateTime);
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Choose time',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      minimumDateTime == null
+                          ? 'Scroll to choose a reminder time.'
+                          : 'Default is 2 minutes ahead. You can choose from 1 minute ahead.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 190,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _timeWheel(
+                            controller: hourController,
+                            itemCount: 12,
+                            builder: (index) => '${index + 1}',
+                            onChanged: (index) => setSheetState(
+                              () => selectedHour = index + 1,
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(':', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+                          ),
+                          _timeWheel(
+                            controller: minuteController,
+                            itemCount: 60,
+                            builder: (index) => index.toString().padLeft(2, '0'),
+                            onChanged: (index) => setSheetState(
+                              () => selectedMinute = index,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          _timeWheel(
+                            controller: periodController,
+                            itemCount: 2,
+                            builder: (index) => index == 0 ? 'AM' : 'PM',
+                            onChanged: (index) => setSheetState(
+                              () => selectedPeriod = index == 0
+                                  ? DayPeriod.am
+                                  : DayPeriod.pm,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!valid)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text('That time has already passed.', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: valid
+                            ? () => Navigator.of(sheetContext).pop(
+                                  TimeOfDay(
+                                    hour: selectedPeriod == DayPeriod.am
+                                        ? selectedHour % 12
+                                        : (selectedHour % 12) + 12,
+                                    minute: selectedMinute,
+                                  ),
+                                )
+                            : null,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Set reminder time'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    return result;
+  }
+
+  Widget _timeWheel({
+    required FixedExtentScrollController controller,
+    required int itemCount,
+    required String Function(int index) builder,
+    required ValueChanged<int> onChanged,
+  }) {
+    return SizedBox(
+      width: 72,
+      child: ListWheelScrollView.useDelegate(
+        controller: controller,
+        itemExtent: 48,
+        perspective: 0.003,
+        diameterRatio: 1.5,
+        physics: const FixedExtentScrollPhysics(),
+        onSelectedItemChanged: onChanged,
+        childDelegate: ListWheelChildBuilderDelegate(
+          childCount: itemCount,
+          builder: (context, index) {
+            return Center(
+              child: Text(
+                builder(index),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  DateTime _timeOfDayDateTime(int hour, int minute, DayPeriod period) {
+    final now = DateTime.now();
+    final hour24 = period == DayPeriod.am ? hour % 12 : (hour % 12) + 12;
+    return DateTime(now.year, now.month, now.day, hour24, minute);
+  }
+
+  bool _isSelectableTime(DateTime value, DateTime reference) {
+    final valueMinute = DateTime(value.year, value.month, value.day, value.hour, value.minute);
+    final referenceMinute = DateTime(reference.year, reference.month, reference.day, reference.hour, reference.minute);
+    return valueMinute.isAfter(referenceMinute);
   }
 
   void _setQuickDue(Duration offset) {
