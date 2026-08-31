@@ -50,22 +50,25 @@ void main() {
       created.id,
       title: 'Updated task',
       dueAt: DateTime.now().add(const Duration(minutes: 10, seconds: 59)),
-      reminderType: TaskReminderType.none,
+      reminderType: TaskReminderType.once,
     );
 
     expect(store.tasks.single.title, 'Updated task');
     expect(store.tasks.single.dueAt!.second, 0);
     expect(reminders.cancelled, contains(created.id));
+    expect(reminders.scheduled.where((id) => id == created.id).length, 2);
 
     await store.toggleCompleted(created.id);
     expect(store.tasks.single.isCompleted, isTrue);
-    expect(reminders.cancelled, contains(created.id));
+    expect(reminders.cancelled.length, greaterThanOrEqualTo(2));
 
     await store.toggleCompleted(created.id);
     expect(store.tasks.single.isCompleted, isFalse);
+    expect(reminders.scheduled.where((id) => id == created.id).length, 3);
 
     await store.deleteTask(created.id);
     expect(store.tasks, isEmpty);
+    expect(reminders.cancelled.length, greaterThanOrEqualTo(3));
 
     store.dispose();
   });
@@ -113,6 +116,39 @@ void main() {
     expect(second.tasks.single.isCompleted, isTrue);
     expect(reminders.scheduled, isEmpty);
     second.dispose();
+  });
+
+  test('switching reminder modes replaces the previous schedule', () async {
+    final repository = MemoryTaskRepository();
+    final reminders = FakeReminderScheduler();
+    final store = TaskStore(repository: repository, reminderScheduler: reminders);
+    final due = DateTime.now().add(const Duration(hours: 2));
+
+    await store.addTask(title: 'Reminder task', dueAt: due, reminderType: TaskReminderType.once);
+    final id = store.tasks.single.id;
+    final scheduledAfterOnce = reminders.scheduled.length;
+
+    await store.updateTask(
+      id,
+      title: 'Reminder task',
+      dueAt: due,
+      reminderType: TaskReminderType.interval,
+      reminderInterval: const Duration(hours: 2),
+    );
+
+    expect(reminders.cancelled, contains(id));
+    expect(reminders.scheduled.length, scheduledAfterOnce + 1);
+
+    await store.updateTask(
+      id,
+      title: 'Reminder task',
+      dueAt: due,
+      reminderType: TaskReminderType.none,
+    );
+
+    expect(reminders.cancelled.length, greaterThanOrEqualTo(2));
+    expect(reminders.scheduled.length, scheduledAfterOnce + 1);
+    store.dispose();
   });
 
   test('rejects a reminder without a due time', () async {
