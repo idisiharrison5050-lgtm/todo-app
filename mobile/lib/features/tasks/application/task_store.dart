@@ -32,6 +32,7 @@ class TaskStore extends ChangeNotifier {
       ..clear()
       ..addAll(loaded);
     _isLoaded = true;
+    await _restoreReminders();
     notifyListeners();
   }
 
@@ -138,6 +139,16 @@ class TaskStore extends ChangeNotifier {
     }
     _tasks.removeWhere((task) => task.isCompleted);
     notifyListeners();
+  }
+
+  Future<void> _restoreReminders() async {
+    final reminderTasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false);
+    if (reminderTasks.isEmpty) return;
+    final permitted = await _reminderScheduler.requestPermission();
+    if (!permitted && !kIsWeb) return;
+    for (final task in reminderTasks) {
+      await _reminderScheduler.schedule(task);
+    }
   }
 
   Future<void> _syncReminder(Task task) async {
