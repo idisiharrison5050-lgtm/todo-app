@@ -42,8 +42,6 @@ class TaskStore extends ChangeNotifier {
     _isLoaded = true;
 
     if (_notificationsEnabled) {
-      // Rebuild the OS schedule from the persisted task list without asking
-      // for permission again on every app launch.
       await _reminderScheduler.cancelAll();
       for (final task in _tasks) {
         if (!task.isCompleted) await _syncReminder(task, requestPermission: false);
@@ -74,7 +72,7 @@ class TaskStore extends ChangeNotifier {
     required String title,
     String notes = '',
     DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.none,
+    TaskReminderType reminderType = TaskReminderType.once,
     Duration? reminderInterval,
     TaskPriority priority = TaskPriority.normal,
   }) async {
@@ -83,9 +81,6 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
-    }
-    if (normalizedDueAt != null && reminderType == TaskReminderType.none) {
-      reminderType = TaskReminderType.once;
     }
     if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
       throw ArgumentError('A reminder requires a due date and time.');
@@ -114,7 +109,7 @@ class TaskStore extends ChangeNotifier {
     required String title,
     String notes = '',
     DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.none,
+    TaskReminderType reminderType = TaskReminderType.once,
     Duration? reminderInterval,
     TaskPriority priority = TaskPriority.normal,
   }) async {
@@ -125,9 +120,6 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
-    }
-    if (normalizedDueAt != null && reminderType == TaskReminderType.none) {
-      reminderType = TaskReminderType.once;
     }
     if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
       throw ArgumentError('A reminder requires a due date and time.');
