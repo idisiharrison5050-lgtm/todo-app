@@ -3,10 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-/// OS-level notification adapter.
-///
-/// This class owns plugin/platform concerns. Task and reminder domain logic
-/// should depend on an abstraction instead of this implementation directly.
+/// OS-level notification adapter for task reminders.
 class LocalNotificationService {
   LocalNotificationService({FlutterLocalNotificationsPlugin? plugin})
       : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
@@ -16,7 +13,6 @@ class LocalNotificationService {
 
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
-
     tz.initializeTimeZones();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -26,24 +22,20 @@ class LocalNotificationService {
       requestSoundPermission: false,
     );
 
-    final settings = InitializationSettings(
-      android: android,
-      iOS: darwin,
-      macOS: darwin,
+    await _plugin.initialize(
+      settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
     );
-
-    await _plugin.initialize(settings: settings);
     _initialized = true;
   }
 
   Future<bool> requestPermissions() async {
     if (kIsWeb) return false;
-
     await initialize();
 
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     final androidGranted = await android?.requestNotificationsPermission();
+    await android?.requestExactAlarmsPermission();
 
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
@@ -65,7 +57,17 @@ class LocalNotificationService {
     await initialize();
     if (kIsWeb) return;
 
-    final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
+    // Date/time pickers represent reminders to the minute. Explicitly clear
+    // seconds and milliseconds so task creation time can never leak into the
+    // scheduled notification time.
+    final minute = DateTime(
+      scheduledAt.year,
+      scheduledAt.month,
+      scheduledAt.day,
+      scheduledAt.hour,
+      scheduledAt.minute,
+    );
+    final scheduled = tz.TZDateTime.from(minute, tz.local);
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
 
     await _plugin.zonedSchedule(
@@ -83,7 +85,7 @@ class LocalNotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
