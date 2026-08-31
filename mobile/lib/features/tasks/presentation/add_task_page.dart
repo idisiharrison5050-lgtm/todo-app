@@ -20,7 +20,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   late final TextEditingController _notesController;
   DateTime? _dueAt;
   TaskPriority _priority = TaskPriority.normal;
-  TaskReminderType _reminderType = TaskReminderType.none;
+  TaskReminderType _reminderType = TaskReminderType.once;
   Duration? _interval = const Duration(hours: 2);
   bool _saving = false;
 
@@ -32,7 +32,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _notesController = TextEditingController(text: task?.notes ?? '');
     _dueAt = task?.dueAt;
     _priority = task?.priority ?? TaskPriority.normal;
-    _reminderType = task?.reminderType ?? TaskReminderType.none;
+    _reminderType = task?.reminderType ?? TaskReminderType.once;
     _interval = task?.reminderInterval ?? const Duration(hours: 2);
   }
 
@@ -83,142 +83,94 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Give your task a name first.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Give your task a name first.')));
       return;
     }
 
     if (_dueAt != null && _reminderType != TaskReminderType.none && !_dueAt!.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose a future time for the reminder.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future time for the reminder.')));
       return;
     }
 
     if (_reminderType == TaskReminderType.interval && _interval == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose how often to repeat the reminder.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose how often to repeat the reminder.')));
       return;
     }
 
     setState(() => _saving = true);
     try {
       if (widget.task == null) {
-        await widget.store.addTask(
-          title: title,
-          notes: _notesController.text,
-          dueAt: _dueAt,
-          reminderType: _reminderType,
-          reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
-          priority: _priority,
-        );
+        await widget.store.addTask(title: title, notes: _notesController.text, dueAt: _dueAt, reminderType: _reminderType, reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null, priority: _priority);
       } else {
-        await widget.store.updateTask(
-          widget.task!.id,
-          title: title,
-          notes: _notesController.text,
-          dueAt: _dueAt,
-          reminderType: _reminderType,
-          reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null,
-          priority: _priority,
-        );
+        await widget.store.updateTask(widget.task!.id, title: title, notes: _notesController.text, dueAt: _dueAt, reminderType: _reminderType, reminderInterval: _reminderType == TaskReminderType.interval ? _interval : null, priority: _priority);
       }
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save the task. Try again.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save the task. Try again.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final reminderOn = _reminderType != TaskReminderType.none;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit task' : 'New task'),
-        actions: [
-          TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
-        ],
+        actions: [TextButton(onPressed: _saving ? null : _save, child: const Text('Save'))],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
         children: [
-          TextField(
-            controller: _titleController,
-            autofocus: !widget.isEditing,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'What needs to be done?',
-              prefixIcon: Icon(Icons.check_circle_outline),
-            ),
-          ),
+          TextField(controller: _titleController, autofocus: !widget.isEditing, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(hintText: 'What needs to be done?', prefixIcon: Icon(Icons.check_circle_outline))),
           const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            minLines: 2,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Notes (optional)',
-              prefixIcon: Icon(Icons.notes_outlined),
-            ),
-          ),
+          TextField(controller: _notesController, minLines: 2, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(hintText: 'Notes (optional)', prefixIcon: Icon(Icons.notes_outlined))),
           const SizedBox(height: 28),
           Text('Schedule', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ActionChip(label: const Text('15 min'), onPressed: () => _setQuickDue(const Duration(minutes: 15))),
-              ActionChip(label: const Text('1 hour'), onPressed: () => _setQuickDue(const Duration(hours: 1))),
-              ActionChip(label: const Text('Tomorrow'), onPressed: _setTomorrow),
-            ],
-          ),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ActionChip(label: const Text('15 min'), onPressed: () => _setQuickDue(const Duration(minutes: 15))),
+            ActionChip(label: const Text('1 hour'), onPressed: () => _setQuickDue(const Duration(hours: 1))),
+            ActionChip(label: const Text('Tomorrow'), onPressed: _setTomorrow),
+          ]),
           const SizedBox(height: 8),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule_outlined),
-            title: Text(_dueAt == null ? 'Set date & time' : _formatDateTime(_dueAt!)),
-            subtitle: const Text('Choose when this task is due'),
-            trailing: _dueAt == null
-                ? const Icon(Icons.chevron_right)
-                : IconButton(
-                    tooltip: 'Clear due date',
-                    onPressed: () => setState(() => _dueAt = null),
-                    icon: const Icon(Icons.close),
-                  ),
-            onTap: _pickDateTime,
-          ),
+          ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.schedule_outlined), title: Text(_dueAt == null ? 'Set date & time' : _formatDateTime(_dueAt!)), subtitle: const Text('Choose when this task is due'), trailing: _dueAt == null ? const Icon(Icons.chevron_right) : IconButton(tooltip: 'Clear due date', onPressed: () => setState(() => _dueAt = null), icon: const Icon(Icons.close)), onTap: _pickDateTime),
           const Divider(height: 24),
-          Text('Reminder', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<TaskReminderType>(
-            initialValue: _reminderType,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.notifications_outlined)),
-            items: const [
-              DropdownMenuItem(value: TaskReminderType.none, child: Text('No reminder')),
-              DropdownMenuItem(value: TaskReminderType.once, child: Text('Remind once')),
-              DropdownMenuItem(value: TaskReminderType.interval, child: Text('Repeat reminder')),
-            ],
-            onChanged: (value) => setState(() => _reminderType = value ?? TaskReminderType.none),
+          Card(
+            margin: EdgeInsets.zero,
+            child: SwitchListTile(
+              secondary: Icon(reminderOn ? Icons.notifications_active : Icons.notifications_off_outlined),
+              title: const Text('Reminder'),
+              subtitle: Text(reminderOn ? 'Remind once at the due time' : 'Off'),
+              value: reminderOn,
+              onChanged: (enabled) => setState(() => _reminderType = enabled ? TaskReminderType.once : TaskReminderType.none),
+            ),
           ),
+          if (reminderOn) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<TaskReminderType>(
+              initialValue: _reminderType,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.notifications_outlined), labelText: 'Reminder type'),
+              items: const [
+                DropdownMenuItem(value: TaskReminderType.once, child: Text('Remind once')),
+                DropdownMenuItem(value: TaskReminderType.interval, child: Text('Repeat reminder')),
+              ],
+              onChanged: (value) => setState(() => _reminderType = value ?? TaskReminderType.once),
+            ),
+          ],
           if (_reminderType == TaskReminderType.interval) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<Duration>(
               initialValue: _interval,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.repeat)),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.repeat), labelText: 'Repeat every'),
               items: const [
-                DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')),
-                DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')),
-                DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')),
-                DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
+                DropdownMenuItem(value: Duration(minutes: 30), child: Text('30 minutes')),
+                DropdownMenuItem(value: Duration(hours: 1), child: Text('1 hour')),
+                DropdownMenuItem(value: Duration(hours: 2), child: Text('2 hours')),
+                DropdownMenuItem(value: Duration(hours: 4), child: Text('4 hours')),
               ],
               onChanged: (value) => setState(() => _interval = value),
             ),
@@ -226,24 +178,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
           const SizedBox(height: 28),
           Text('Priority', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          SegmentedButton<TaskPriority>(
-            segments: const [
-              ButtonSegment(value: TaskPriority.low, label: Text('Low')),
-              ButtonSegment(value: TaskPriority.normal, label: Text('Normal')),
-              ButtonSegment(value: TaskPriority.high, label: Text('High')),
-            ],
-            selected: {_priority},
-            onSelectionChanged: (value) => setState(() => _priority = value.first),
-          ),
+          SegmentedButton<TaskPriority>(segments: const [ButtonSegment(value: TaskPriority.low, label: Text('Low')), ButtonSegment(value: TaskPriority.normal, label: Text('Normal')), ButtonSegment(value: TaskPriority.high, label: Text('High'))], selected: {_priority}, onSelectionChanged: (value) => setState(() => _priority = value.first)),
           const SizedBox(height: 36),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: const Icon(Icons.add_task),
-            label: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(_saving ? 'Saving…' : widget.isEditing ? 'Save changes' : 'Create task'),
-            ),
-          ),
+          FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.add_task), label: Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text(_saving ? 'Saving…' : widget.isEditing ? 'Save changes' : 'Create task'))),
         ],
       ),
     );
