@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../reminders/application/reminder_scheduler.dart';
@@ -12,10 +13,12 @@ class TaskStore extends ChangeNotifier {
         _reminderScheduler = reminderScheduler ?? _createReminderScheduler();
 
   static const Uuid _uuid = Uuid();
+  static const String _notificationsEnabledKey = 'notifications_enabled';
   final TaskRepository _repository;
   final ReminderScheduler _reminderScheduler;
   final List<Task> _tasks = <Task>[];
   bool _isLoaded = false;
+  bool _notificationsEnabled = true;
 
   static ReminderScheduler _createReminderScheduler() {
     if (kIsWeb) return NoopReminderScheduler();
@@ -24,14 +27,40 @@ class TaskStore extends ChangeNotifier {
 
   List<Task> get tasks => List.unmodifiable(_tasks);
   bool get isLoaded => _isLoaded;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   Future<void> load() async {
     if (_isLoaded) return;
+    if (!kIsWeb) {
+      final preferences = await SharedPreferences.getInstance();
+      _notificationsEnabled = preferences.getBool(_notificationsEnabledKey) ?? true;
+    }
     final loaded = await _repository.getTasks();
     _tasks
       ..clear()
       ..addAll(loaded);
     _isLoaded = true;
+    if (_notificationsEnabled) {
+      for (final task in _tasks) {
+        await _syncReminder(task);
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    if (!kIsWeb) {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(_notificationsEnabledKey, enabled);
+    }
+    if (enabled) {
+      for (final task in _tasks) {
+        await _syncReminder(task);
+      }
+    } else {
+      await _reminderScheduler.cancelAll();
+    }
     notifyListeners();
   }
 
@@ -48,6 +77,9 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (normalizedDueAt != null && reminderType == TaskReminderType.none) {
+      reminderType = TaskReminderType.once;
     }
     if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
       throw ArgumentError('A reminder requires a due date and time.');
@@ -87,6 +119,9 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (normalizedDueAt != null && reminderType == TaskReminderType.none) {
+      reminderType = TaskReminderType.once;
     }
     if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
       throw ArgumentError('A reminder requires a due date and time.');
@@ -142,7 +177,7 @@ class TaskStore extends ChangeNotifier {
 
   Future<void> _syncReminder(Task task) async {
     await _reminderScheduler.cancel(task.id);
-    if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return;
+    if (!_notificationsEnabled || task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
     await _reminderScheduler.schedule(task);
