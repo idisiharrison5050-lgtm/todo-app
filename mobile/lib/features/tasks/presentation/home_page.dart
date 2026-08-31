@@ -61,7 +61,7 @@ class _TaskListViewState extends State<TaskListView> {
     final all = widget.store.tasks;
     final completed = all.where((task) => task.isCompleted).length;
     final active = all.length - completed;
-    final visible = all.where(_matchesFilter).where(_matchesPriority).toList()..sort(_compareTasks);
+    final visible = all.where((task) => _matchesFilter(task, now)).where(_matchesPriority).toList()..sort(_compareTasks);
     final query = _query.trim().toLowerCase();
     final filtered = query.isEmpty ? visible : visible.where((task) => '${task.title} ${task.notes}'.toLowerCase().contains(query)).toList();
     return SafeArea(child: CustomScrollView(slivers: [
@@ -95,15 +95,20 @@ class _TaskListViewState extends State<TaskListView> {
   }
   String _headerText(int active, int completed, int shown) { if (widget.filter == TaskFilter.completed) return '$shown completed'; if (widget.filter == TaskFilter.upcoming) return '$shown upcoming'; if (widget.filter == TaskFilter.all) return '$shown active'; return '$active active'; }
   bool _matchesPriority(Task task) => _priorityFilter == null || task.priority == _priorityFilter;
-  bool _matchesFilter(Task task) {
+  bool _matchesFilter(Task task, DateTime now) {
     if (widget.filter == TaskFilter.completed) return task.isCompleted;
     if (task.isCompleted) return false;
     if (widget.filter == TaskFilter.all) return true;
     final due = task.dueAt;
     if (due == null) return widget.filter == TaskFilter.today;
-    final now = DateTime.now(); final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
     if (widget.filter == TaskFilter.today) return due.isBefore(tomorrow);
-    return due.isAfter(now);
+    if (widget.filter == TaskFilter.upcoming) {
+      final currentMinute = DateTime(now.year, now.month, now.day, now.hour, now.minute);
+      return !due.isBefore(currentMinute);
+    }
+    return false;
   }
   int _compareTasks(Task a, Task b) { if (a.dueAt == null && b.dueAt == null) return b.priority.index.compareTo(a.priority.index); if (a.dueAt == null) return 1; if (b.dueAt == null) return -1; final compare = a.dueAt!.compareTo(b.dueAt!); return compare != 0 ? compare : b.priority.index.compareTo(a.priority.index); }
   Future<void> _clearCompleted(BuildContext context) async { final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Clear completed tasks?'), content: const Text('This permanently removes every completed task.'), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Clear all'))])); if (confirmed == true) await widget.store.clearCompleted(); }
@@ -131,17 +136,12 @@ class _TaskCard extends StatelessWidget {
         leading: Checkbox(value: task.isCompleted, onChanged: (_) => store.toggleCompleted(task.id)),
         title: Row(children: [Expanded(child: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700))), if (task.priority != TaskPriority.normal) Icon(priorityIcon, size: 18, color: task.priority == TaskPriority.high ? scheme.error : scheme.primary)]),
         subtitle: _subtitle(context, overdue),
-        trailing: PopupMenuButton<String>(
-          tooltip: 'Task actions',
-          icon: const Icon(Icons.more_horiz),
-          onSelected: (value) => _handleAction(context, value),
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Edit task'))),
-            PopupMenuItem(value: 'complete', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(task.isCompleted ? Icons.undo : Icons.check_circle_outline), title: Text(task.isCompleted ? 'Mark active' : 'Mark complete'))),
-            const PopupMenuItem(value: 'reminder', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.notifications_outlined), title: Text('Reminder & time'))),
-            const PopupMenuItem(value: 'delete', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline), title: Text('Delete task'))),
-          ],
-        ),
+        trailing: PopupMenuButton<String>(tooltip: 'Task actions', icon: const Icon(Icons.more_horiz), onSelected: (value) => _handleAction(context, value), itemBuilder: (context) => [
+          const PopupMenuItem(value: 'edit', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.edit_outlined), title: Text('Edit task'))),
+          PopupMenuItem(value: 'complete', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(task.isCompleted ? Icons.undo : Icons.check_circle_outline), title: Text(task.isCompleted ? 'Mark active' : 'Mark complete'))),
+          const PopupMenuItem(value: 'reminder', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.notifications_outlined), title: Text('Reminder & time')),
+          const PopupMenuItem(value: 'delete', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.delete_outline), title: Text('Delete task')),
+        ]),
         onTap: () => _openDetails(context),
       )),
     );
@@ -162,5 +162,5 @@ class _EmptyTasks extends StatelessWidget {
 }
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
-  @override Widget build(BuildContext context) => SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 24, 20, 40), children: [Text('Settings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text('Todo keeps your tasks and reminders on this device.', style: Theme.of(context).textTheme.bodyMedium), const SizedBox(height: 24), Card(child: Column(children: const [ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text('Notifications'), subtitle: Text('Reminder notifications are enabled for scheduled tasks.')), Divider(height: 1), ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing and reopening the app.')), Divider(height: 1), ListTile(leading: Icon(Icons.alarm_outlined), title: Text('Exact reminders'), subtitle: Text('Reminders target the selected minute and can fire while idle.'))]))]));
+  @override Widget build(BuildContext context) => SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 24, 20, 40), children: [Text('Settings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text('Todo keeps your tasks and reminders on this device.', style: Theme.of(context).textTheme.bodyMedium), const SizedBox(height: 24), Card(child: Column(children: const [ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text('Notifications'), subtitle: Text('Reminder notifications are enabled for scheduled tasks.')), Divider(height: 1), ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing the app.'))]))]));
 }
