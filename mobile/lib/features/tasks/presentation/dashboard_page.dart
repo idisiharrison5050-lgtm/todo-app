@@ -5,25 +5,129 @@ import 'add_task_page.dart';
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key, required this.store});
   final TaskStore store;
-  @override Widget build(BuildContext context) {
+
+  @override
+  Widget build(BuildContext context) {
     final tasks = store.tasks;
     final completed = tasks.where((task) => task.isCompleted).length;
     final active = tasks.length - completed;
     final now = DateTime.now();
     final overdue = tasks.where((task) => !task.isCompleted && task.dueAt != null && task.dueAt!.isBefore(now)).length;
-    final upcoming = tasks.where((task) => !task.isCompleted && task.dueAt != null && task.dueAt!.isAfter(now)).toList()..sort((a,b) => a.dueAt!.compareTo(b.dueAt!));
+    final upcoming = tasks.where((task) => !task.isCompleted && task.dueAt != null && task.dueAt!.isAfter(now)).toList()
+      ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
     final rate = tasks.isEmpty ? 0.0 : completed / tasks.length;
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(body: SafeArea(child: CustomScrollView(slivers: [
-      SliverPadding(padding: const EdgeInsets.fromLTRB(20,28,20,12), sliver: SliverToBoxAdapter(child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(_greeting(), style: Theme.of(context).textTheme.bodyMedium), const SizedBox(height:4), Text('Your productivity', style: Theme.of(context).textTheme.headlineMedium)])), CircleAvatar(radius:24, backgroundColor: scheme.primaryContainer, child: Icon(Icons.person_outline_rounded, color: scheme.onPrimaryContainer))]))),
-      SliverPadding(padding: const EdgeInsets.fromLTRB(20,4,20,12), sliver: SliverToBoxAdapter(child: Card(color: scheme.primary, child: Padding(padding: const EdgeInsets.all(22), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Expanded(child: Text('Today at a glance', style: TextStyle(color: scheme.onPrimary, fontSize:17, fontWeight: FontWeight.w800))), Text('${(rate*100).round()}%', style: TextStyle(color: scheme.onPrimary, fontSize:28, fontWeight: FontWeight.w900))]), const SizedBox(height:14), LinearProgressIndicator(value: rate, minHeight:8, backgroundColor: scheme.onPrimary.withValues(alpha:.18), color: scheme.onPrimary), const SizedBox(height:14), Text('$completed of ${tasks.length} tasks completed', style: TextStyle(color: scheme.onPrimary.withValues(alpha:.82), fontWeight: FontWeight.w600))]))))),
-      SliverPadding(padding: const EdgeInsets.fromLTRB(20,8,20,12), sliver: SliverGrid(delegate: SliverChildListDelegate([_Metric(icon:Icons.check_circle_outline,label:'Completed',value:'$completed'),_Metric(icon:Icons.pending_actions_rounded,label:'Active',value:'$active'),_Metric(icon:Icons.warning_amber_rounded,label:'Overdue',value:'$overdue'),_Metric(icon:Icons.calendar_month_outlined,label:'Upcoming',value:'${upcoming.length}')]), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,mainAxisExtent:112,crossAxisSpacing:10,mainAxisSpacing:10))),
-      SliverPadding(padding: const EdgeInsets.fromLTRB(20,8,20,8), sliver: SliverToBoxAdapter(child: Row(children: [Expanded(child: Text('Next up', style: Theme.of(context).textTheme.titleLarge)), if (upcoming.isNotEmpty) Text('${upcoming.length} scheduled', style: Theme.of(context).textTheme.bodyMedium)]))),
-      if (upcoming.isEmpty) SliverPadding(padding: const EdgeInsets.fromLTRB(20,4,20,30), sliver: SliverToBoxAdapter(child: _EmptyDashboard(onAdd: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTaskPage(store: store))))))
-      else SliverPadding(padding: const EdgeInsets.fromLTRB(20,4,20,120), sliver: SliverList.separated(itemCount: upcoming.take(5).length, itemBuilder: (context,index) { final task=upcoming[index]; return Card(child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal:16,vertical:5), leading: Container(width:42,height:42,decoration:BoxDecoration(color:scheme.primaryContainer,borderRadius:BorderRadius.circular(14)),child:Icon(Icons.schedule_rounded,color:scheme.onPrimaryContainer)),title:Text(task.title,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(TimeOfDay.fromDateTime(task.dueAt!).format(context)),trailing:Checkbox(value:task.isCompleted,onChanged:(_)=>store.toggleCompleted(task.id)))); },separatorBuilder:(_,__)=>const SizedBox(height:8))),
-    ])), floatingActionButton: FloatingActionButton.extended(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AddTaskPage(store:store))),icon:const Icon(Icons.add),label:const Text('New task')));
+
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_greeting(), style: Theme.of(context).textTheme.bodyMedium),
+                          const SizedBox(height: 4),
+                          Text('Your productivity', style: Theme.of(context).textTheme.headlineMedium),
+                        ],
+                      ),
+                    ),
+                    CircleAvatar(radius: 24, backgroundColor: scheme.primaryContainer, child: Icon(Icons.person_outline_rounded, color: scheme.onPrimaryContainer)),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              sliver: SliverToBoxAdapter(
+                child: Card(
+                  color: scheme.primary,
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [Expanded(child: Text('Today at a glance', style: TextStyle(color: scheme.onPrimary, fontSize: 17, fontWeight: FontWeight.w800))), Text('${(rate * 100).round()}%', style: TextStyle(color: scheme.onPrimary, fontSize: 28, fontWeight: FontWeight.w900))]),
+                        const SizedBox(height: 14),
+                        LinearProgressIndicator(value: rate, minHeight: 8, backgroundColor: scheme.onPrimary.withValues(alpha: .18), color: scheme.onPrimary),
+                        const SizedBox(height: 14),
+                        Text('$completed of ${tasks.length} tasks completed', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .82), fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              sliver: SliverGrid(
+                delegate: SliverChildListDelegate([
+                  _Metric(icon: Icons.check_circle_outline, label: 'Completed', value: '$completed'),
+                  _Metric(icon: Icons.pending_actions_rounded, label: 'Active', value: '$active'),
+                  _Metric(icon: Icons.warning_amber_rounded, label: 'Overdue', value: '$overdue'),
+                  _Metric(icon: Icons.calendar_month_outlined, label: 'Upcoming', value: '${upcoming.length}'),
+                ]),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisExtent: 112, crossAxisSpacing: 10, mainAxisSpacing: 10),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              sliver: SliverToBoxAdapter(
+                child: Row(children: [Expanded(child: Text('Next up', style: Theme.of(context).textTheme.titleLarge)), if (upcoming.isNotEmpty) Text('${upcoming.length} scheduled', style: Theme.of(context).textTheme.bodyMedium)]),
+              ),
+            ),
+            if (upcoming.isEmpty)
+              SliverPadding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 30), sliver: SliverToBoxAdapter(child: _EmptyDashboard(onAdd: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTaskPage(store: store))))))
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+                sliver: SliverList.separated(
+                  itemCount: upcoming.take(5).length,
+                  itemBuilder: (context, index) {
+                    final task = upcoming[index];
+                    return Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                        leading: Container(width: 42, height: 42, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(Icons.schedule_rounded, color: scheme.onPrimaryContainer)),
+                        title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(TimeOfDay.fromDateTime(task.dueAt!).format(context)),
+                        trailing: Checkbox(value: task.isCompleted, onChanged: (_) => store.toggleCompleted(task.id)),
+                      ),
+                    );
+                  },
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                ),
+              ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTaskPage(store: store))), icon: const Icon(Icons.add), label: const Text('New task')),
+    );
   }
-  String _greeting() { final hour=DateTime.now().hour; if(hour<12)return'Good morning'; if(hour<18)return'Good afternoon'; return'Good evening'; }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
 }
-class _Metric extends StatelessWidget { const _Metric({required this.icon,required this.label,required this.value}); final IconData icon; final String label,value; @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[Icon(icon,color:Theme.of(context).colorScheme.primary),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[Text(value,style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w900)),Text(label,style:Theme.of(context).textTheme.bodyMedium)]))]))); }
-class _EmptyDashboard extends StatelessWidget { const _EmptyDashboard({required this.onAdd}); final VoidCallback onAdd; @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(28),child:Column(children:[Icon(Icons.auto_awesome_rounded,size:42,color:Theme.of(context).colorScheme.primary),const SizedBox(height:12),Text('A clean slate',style:Theme.of(context).textTheme.titleLarge),const SizedBox(height:6),const Text('Plan your next win and keep momentum moving.',textAlign:TextAlign.center),const SizedBox(height:18),OutlinedButton.icon(onPressed:onAdd,icon:const Icon(Icons.add),label:const Text('Create a task'))]))); }
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+  @override Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(icon, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), Text(label, style: Theme.of(context).textTheme.bodyMedium)]))])));
+}
+
+class _EmptyDashboard extends StatelessWidget {
+  const _EmptyDashboard({required this.onAdd});
+  final VoidCallback onAdd;
+  @override Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(28), child: Column(children: [Icon(Icons.auto_awesome_rounded, size: 42, color: Theme.of(context).colorScheme.primary), const SizedBox(height: 12), Text('A clean slate', style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 6), const Text('Plan your next win and keep momentum moving.', textAlign: TextAlign.center), const SizedBox(height: 18), OutlinedButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Create a task'))])));
+}
