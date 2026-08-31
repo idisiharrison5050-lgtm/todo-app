@@ -40,10 +40,16 @@ class TaskStore extends ChangeNotifier {
       ..clear()
       ..addAll(loaded);
     _isLoaded = true;
+
     if (_notificationsEnabled) {
+      // Rebuild the OS schedule from the persisted task list without asking
+      // for permission again on every app launch.
+      await _reminderScheduler.cancelAll();
       for (final task in _tasks) {
-        await _syncReminder(task);
+        if (!task.isCompleted) await _syncReminder(task, requestPermission: false);
       }
+    } else {
+      await _reminderScheduler.cancelAll();
     }
     notifyListeners();
   }
@@ -56,7 +62,7 @@ class TaskStore extends ChangeNotifier {
     }
     if (enabled) {
       for (final task in _tasks) {
-        await _syncReminder(task);
+        if (!task.isCompleted) await _syncReminder(task);
       }
     } else {
       await _reminderScheduler.cancelAll();
@@ -175,11 +181,13 @@ class TaskStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _syncReminder(Task task) async {
+  Future<void> _syncReminder(Task task, {bool requestPermission = true}) async {
     await _reminderScheduler.cancel(task.id);
     if (!_notificationsEnabled || task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return;
-    final permitted = await _reminderScheduler.requestPermission();
-    if (!permitted && !kIsWeb) return;
+    if (requestPermission) {
+      final permitted = await _reminderScheduler.requestPermission();
+      if (!permitted && !kIsWeb) return;
+    }
     await _reminderScheduler.schedule(task);
   }
 
