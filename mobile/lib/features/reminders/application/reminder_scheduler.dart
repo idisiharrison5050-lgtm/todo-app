@@ -42,6 +42,7 @@ class LocalReminderScheduler implements ReminderScheduler {
       title: task.title,
       body: 'You have a scheduled task.',
       scheduledAt: schedule.fireAt,
+      payload: task.id,
     );
 
     final interval = schedule.repeatInterval;
@@ -55,6 +56,7 @@ class LocalReminderScheduler implements ReminderScheduler {
         title: task.title,
         body: 'You have a scheduled task.',
         scheduledAt: next,
+        payload: task.id,
       );
     }
   }
