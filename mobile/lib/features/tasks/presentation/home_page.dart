@@ -130,7 +130,7 @@ class _TaskListViewState extends State<TaskListView> {
               sliver: SliverList.separated(
                 itemCount: filtered.length,
                 itemBuilder: (context, index) => _TaskCard(task: filtered[index], store: widget.store, now: now, showOverdue: widget.filter == TaskFilter.today),
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
               ),
             ),
         ],
@@ -327,20 +327,30 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 24, 20, 40), children: [
-      Text('Settings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      Text('Todo keeps your tasks and reminders on this device.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-      const SizedBox(height: 24),
-      Card(child: Column(children: const [
-        ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text('Notifications'), subtitle: Text('Reminder notifications are requested when you save a reminder.')),
-        Divider(height: 1),
-        ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing and reopening the app.')),
-        Divider(height: 1),
-        ListTile(leading: Icon(Icons.alarm_outlined), title: Text('Exact reminders'), subtitle: Text('Android reminders target the selected minute and can fire while idle.')),
-      ])),
-      const SizedBox(height: 20),
-      Card(child: ListTile(leading: CircleAvatar(backgroundColor: scheme.primaryContainer, child: Icon(Icons.check_rounded, color: scheme.onPrimaryContainer)), title: const Text('Todo'), subtitle: const Text('Simple tasks, clear reminders.'))),
-    ]));
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+        children: [
+          Text('Settings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('Todo keeps your tasks and reminders on this device.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 24),
+          Card(child: Column(children: const [
+            ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text('Notifications'), subtitle: Text('Reminder notifications are requested when you save a reminder.')),
+            Divider(height: 1),
+            ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing and reopening the app.')),
+            Divider(height: 1),
+            ListTile(leading: Icon(Icons.alarm_outlined), title: Text('Exact reminders'), subtitle: Text('Android reminders target the selected minute and can fire while idle.')),
+          ])),
+          const SizedBox(height: 20),
+          Card(child: ListTile(
+            leading: CircleAvatar(backgroundColor: scheme.primaryContainer, child: Icon(Icons.check_rounded, color: scheme.onPrimaryContainer)),
+            title: const Text('Todo'),
+            subtitle: const Text('Simple tasks. Clear focus.'),
+            trailing: const Text('v1.0'),
+          )),
+        ],
+      ),
+    );
   }
 }
