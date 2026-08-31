@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:todo_mobile/features/reminders/application/reminder_scheduler.dart';
 import 'package:todo_mobile/features/tasks/application/task_store.dart';
 import 'package:todo_mobile/features/tasks/data/task_repository_memory.dart';
 import 'package:todo_mobile/features/tasks/presentation/home_page.dart';
 import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
 
+TaskStore createTestStore() {
+  return TaskStore(
+    repository: MemoryTaskRepository(),
+    reminderScheduler: NoopReminderScheduler(),
+  );
+}
+
 void main() {
   testWidgets('renders the Today screen', (WidgetTester tester) async {
-    final store = TaskStore(repository: MemoryTaskRepository());
+    final store = createTestStore();
 
     await tester.pumpWidget(MaterialApp(home: TodayPage(store: store)));
     await tester.pump();
@@ -22,7 +30,7 @@ void main() {
   });
 
   testWidgets('renders the full task navigation', (WidgetTester tester) async {
-    final store = TaskStore(repository: MemoryTaskRepository());
+    final store = createTestStore();
 
     await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
     await tester.pump();
@@ -49,7 +57,7 @@ void main() {
   });
 
   testWidgets('shows search and clears completed tasks', (WidgetTester tester) async {
-    final store = TaskStore(repository: MemoryTaskRepository());
+    final store = createTestStore();
     await store.addTask(title: 'Buy groceries');
     await store.addTask(title: 'Write report');
 
@@ -70,6 +78,7 @@ void main() {
     expect(find.text('Write report'), findsOneWidget);
 
     await store.toggleCompleted(store.tasks.first.id);
+    await tester.pump();
     await tester.tap(find.text('Done').first);
     await tester.pump();
     expect(find.text('Buy groceries'), findsOneWidget);
