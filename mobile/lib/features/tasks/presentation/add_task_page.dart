@@ -64,6 +64,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
     });
   }
 
+  void _setQuickDue(Duration offset) {
+    final value = DateTime.now().add(offset);
+    setState(() {
+      _dueAt = DateTime(value.year, value.month, value.day, value.hour, value.minute);
+    });
+  }
+
+  void _setTomorrow() {
+    final now = DateTime.now().add(const Duration(days: 1));
+    setState(() {
+      _dueAt = DateTime(now.year, now.month, now.day, 9, 0);
+    });
+  }
+
   Future<void> _save() async {
     if (_saving) return;
 
@@ -71,6 +85,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Give your task a name first.')),
+      );
+      return;
+    }
+
+    if (_dueAt != null && _reminderType != TaskReminderType.none && !_dueAt!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a future time for the reminder.')),
+      );
+      return;
+    }
+
+    if (_reminderType == TaskReminderType.interval && _interval == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose how often to repeat the reminder.')),
       );
       return;
     }
@@ -143,6 +171,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ),
           const SizedBox(height: 28),
           Text('Schedule', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(label: const Text('15 min'), onPressed: () => _setQuickDue(const Duration(minutes: 15))),
+              ActionChip(label: const Text('1 hour'), onPressed: () => _setQuickDue(const Duration(hours: 1))),
+              ActionChip(label: const Text('Tomorrow'), onPressed: _setTomorrow),
+            ],
+          ),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
