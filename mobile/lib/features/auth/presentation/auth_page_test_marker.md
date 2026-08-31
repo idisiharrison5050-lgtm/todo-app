@@ -1,0 +1,1 @@
+Authentication UI is intentionally isolated from the task presentation layer. Keep authentication navigation and session state changes in the application/auth layers rather than inside task widgets.
