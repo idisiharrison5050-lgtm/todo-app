@@ -47,4 +47,40 @@ void main() {
 
     store.dispose();
   });
+
+  testWidgets('shows search and clears completed tasks', (WidgetTester tester) async {
+    final store = TaskStore(repository: MemoryTaskRepository());
+    await store.addTask(title: 'Buy groceries');
+    await store.addTask(title: 'Write report');
+
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pump();
+
+    expect(find.text('Buy groceries'), findsOneWidget);
+    expect(find.text('Write report'), findsOneWidget);
+    expect(find.byIcon(Icons.search), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'groceries');
+    await tester.pump();
+    expect(find.text('Buy groceries'), findsOneWidget);
+    expect(find.text('Write report'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.clear));
+    await tester.pump();
+    expect(find.text('Write report'), findsOneWidget);
+
+    await store.toggleCompleted(store.tasks.first.id);
+    await tester.tap(find.text('Done').first);
+    await tester.pump();
+    expect(find.text('Buy groceries'), findsOneWidget);
+    expect(find.byIcon(Icons.delete_sweep_outlined), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.delete_sweep_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear all'));
+    await tester.pump();
+    expect(find.text('Nothing completed yet'), findsOneWidget);
+
+    store.dispose();
+  });
 }
