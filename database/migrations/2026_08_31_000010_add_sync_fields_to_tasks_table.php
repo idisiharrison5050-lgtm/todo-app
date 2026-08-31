@@ -18,7 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            $table->dropUnique(['tasks_user_id_client_id_unique']);
+            $table->dropUnique('tasks_user_id_client_id_unique');
             $table->dropColumn(['client_id', 'payload']);
         });
     }
