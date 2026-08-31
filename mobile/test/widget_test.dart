@@ -54,11 +54,11 @@ void main() {
 
     final notificationSwitch = find.byType(SwitchListTile).first;
     await tester.tap(notificationSwitch);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('All task reminders are turned off'), findsOneWidget);
 
     await tester.tap(notificationSwitch);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Reminders are enabled'), findsOneWidget);
 
     store.dispose();
