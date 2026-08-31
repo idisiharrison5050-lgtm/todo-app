@@ -68,6 +68,7 @@ class TaskListView extends StatefulWidget {
 
 class _TaskListViewState extends State<TaskListView> {
   String _query = '';
+  TaskPriority? _priorityFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +76,11 @@ class _TaskListViewState extends State<TaskListView> {
     final all = widget.store.tasks;
     final completed = all.where((task) => task.isCompleted).length;
     final active = all.length - completed;
-    final visible = all.where(_matchesFilter).toList()..sort(_compareTasks);
-    final filtered = _query.trim().isEmpty
+    final visible = all.where(_matchesFilter).where(_matchesPriority).toList()..sort(_compareTasks);
+    final query = _query.trim().toLowerCase();
+    final filtered = query.isEmpty
         ? visible
-        : visible.where((task) => '${task.title} ${task.notes}'.toLowerCase().contains(_query.trim().toLowerCase())).toList();
+        : visible.where((task) => '${task.title} ${task.notes}'.toLowerCase().contains(query)).toList();
 
     return SafeArea(
       child: CustomScrollView(
@@ -95,48 +97,50 @@ class _TaskListViewState extends State<TaskListView> {
                       children: [
                         Text(widget.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.8)),
                         const SizedBox(height: 4),
-                        Text(
-                          widget.filter == TaskFilter.completed ? '$completed completed' : '$active active',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        ),
+                        Text(widget.filter == TaskFilter.completed ? '$completed completed' : '$active active', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       ],
                     ),
                   ),
                   if (widget.filter == TaskFilter.today) Chip(label: Text('$active left')),
                   if (widget.filter == TaskFilter.completed && completed > 0)
-                    IconButton(
-                      tooltip: 'Clear completed',
-                      onPressed: () => _clearCompleted(context),
-                      icon: const Icon(Icons.delete_sweep_outlined),
-                    ),
+                    IconButton(tooltip: 'Clear completed', onPressed: () => _clearCompleted(context), icon: const Icon(Icons.delete_sweep_outlined)),
                 ],
               ),
             ),
           ),
           if (widget.filter != TaskFilter.completed && all.isNotEmpty)
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
               sliver: SliverToBoxAdapter(
-                child: TextField(
-                  onChanged: (value) => setState(() => _query = value),
-                  decoration: InputDecoration(
-                    hintText: 'Search tasks',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _query.isEmpty ? null : IconButton(onPressed: () => setState(() => _query = ''), icon: const Icon(Icons.clear)),
+                child: Column(children: [
+                  TextField(
+                    onChanged: (value) => setState(() => _query = value),
+                    decoration: InputDecoration(
+                      hintText: 'Search tasks',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty ? null : IconButton(onPressed: () => setState(() => _query = ''), icon: const Icon(Icons.clear)),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      FilterChip(label: const Text('All priorities'), selected: _priorityFilter == null, onSelected: (_) => setState(() => _priorityFilter = null)),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('High'), selected: _priorityFilter == TaskPriority.high, onSelected: (_) => setState(() => _priorityFilter = TaskPriority.high)),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('Normal'), selected: _priorityFilter == TaskPriority.normal, onSelected: (_) => setState(() => _priorityFilter = TaskPriority.normal)),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('Low'), selected: _priorityFilter == TaskPriority.low, onSelected: (_) => setState(() => _priorityFilter = TaskPriority.low)),
+                    ]),
+                  ),
+                ]),
               ),
             ),
           if (widget.filter == TaskFilter.today)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              sliver: SliverToBoxAdapter(child: _ProgressCard(total: all.length, completed: completed)),
-            ),
+            SliverPadding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 12), sliver: SliverToBoxAdapter(child: _ProgressCard(total: all.length, completed: completed))),
           if (filtered.isEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-              sliver: SliverToBoxAdapter(child: _EmptyTasks(filter: widget.filter, searching: _query.isNotEmpty)),
-            )
+            SliverPadding(padding: const EdgeInsets.fromLTRB(20, 24, 20, 120), sliver: SliverToBoxAdapter(child: _EmptyTasks(filter: widget.filter, searching: _query.isNotEmpty || _priorityFilter != null)))
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
@@ -150,6 +154,8 @@ class _TaskListViewState extends State<TaskListView> {
       ),
     );
   }
+
+  bool _matchesPriority(Task task) => _priorityFilter == null || task.priority == _priorityFilter;
 
   bool _matchesFilter(Task task) {
     if (widget.filter == TaskFilter.completed) return task.isCompleted;
@@ -207,25 +213,17 @@ class _TaskCard extends StatelessWidget {
     return Dismissible(
       key: ValueKey(task.id),
       direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(20)),
-        child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
-      ),
+      background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 24), decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(20)), child: Icon(Icons.delete_outline, color: scheme.onErrorContainer)),
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => store.deleteTask(task.id),
       child: Card(
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           leading: Checkbox(value: task.isCompleted, onChanged: (_) => store.toggleCompleted(task.id)),
-          title: Row(
-            children: [
-              Expanded(child: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700))),
-              if (task.priority != TaskPriority.normal)
-                Icon(priorityIcon, size: 18, color: task.priority == TaskPriority.high ? scheme.error : scheme.primary),
-            ],
-          ),
+          title: Row(children: [
+            Expanded(child: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700))),
+            if (task.priority != TaskPriority.normal) Icon(priorityIcon, size: 18, color: task.priority == TaskPriority.high ? scheme.error : scheme.primary),
+          ]),
           subtitle: _subtitle(context, overdue),
           trailing: IconButton(tooltip: 'Edit task', onPressed: () => _edit(context), icon: const Icon(Icons.more_horiz)),
           onTap: () => _edit(context),
@@ -276,18 +274,16 @@ class _ProgressCard extends StatelessWidget {
       color: scheme.primaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Row(children: [
-              Icon(Icons.check_circle_rounded, color: scheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text(total == 0 ? 'A fresh start' : '$completed of $total tasks completed', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer))),
-              Text('${(progress * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
-            ]),
-            const SizedBox(height: 12),
-            ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(value: progress, minHeight: 8)),
-          ],
-        ),
+        child: Column(children: [
+          Row(children: [
+            Icon(Icons.check_circle_rounded, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(child: Text(total == 0 ? 'A fresh start' : '$completed of $total tasks completed', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer))),
+            Text('${(progress * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(value: progress, minHeight: 8)),
+        ]),
       ),
     );
   }
@@ -301,7 +297,7 @@ class _EmptyTasks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = searching
-        ? ('No matching tasks', 'Try a different title or note.')
+        ? ('No matching tasks', 'Try a different title, note, or priority.')
         : switch (filter) {
             TaskFilter.completed => ('Nothing completed yet', 'Complete a task and it will appear here.'),
             TaskFilter.upcoming => ('Nothing upcoming', 'Schedule a task to see it here.'),
