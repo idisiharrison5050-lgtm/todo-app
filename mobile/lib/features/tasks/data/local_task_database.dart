@@ -10,11 +10,12 @@ import 'task_repository.dart';
 
 class LocalTaskDatabase implements TaskRepository {
   static const _databaseName = 'todo.db';
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
   static const _table = 'tasks';
 
   LocalTaskDatabase({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
 
+  final TokenStorage _storage;
   final TokenStorage _storage;
   Database? _database;
 
@@ -37,7 +38,8 @@ class LocalTaskDatabase implements TaskRepository {
             reminder_type TEXT NOT NULL,
             reminder_interval_minutes INTEGER,
             priority TEXT NOT NULL,
-            is_completed INTEGER NOT NULL DEFAULT 0
+            is_completed INTEGER NOT NULL DEFAULT 0,
+            payload TEXT
           )
         ''');
         await db.execute('CREATE INDEX idx_tasks_due_at ON $_table(due_at)');
@@ -47,6 +49,9 @@ class LocalTaskDatabase implements TaskRepository {
         if (oldVersion < 2) {
           await db.execute("ALTER TABLE $_table ADD COLUMN account_key TEXT NOT NULL DEFAULT ''");
           await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE $_table ADD COLUMN payload TEXT');
         }
       },
     );
@@ -108,10 +113,21 @@ class LocalTaskDatabase implements TaskRepository {
       'reminder_interval_minutes': task.reminderInterval?.inMinutes,
       'priority': task.priority.name,
       'is_completed': task.isCompleted ? 1 : 0,
+      'payload': jsonEncode(task.toJson()),
     };
   }
 
   Task _fromRow(Map<String, Object?> row) {
+    final payload = row['payload'] as String?;
+    if (payload != null && payload.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is Map) {
+          return Task.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+    }
+
     final reminderType = TaskReminderType.values.firstWhere(
       (value) => value.name == row['reminder_type'],
       orElse: () => TaskReminderType.none,
