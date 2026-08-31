@@ -151,6 +151,62 @@ void main() {
     store.dispose();
   });
 
+  test('editing a reminder time cancels the old schedule before scheduling the new one', () async {
+    final repository = MemoryTaskRepository();
+    final reminders = FakeReminderScheduler();
+    final store = TaskStore(repository: repository, reminderScheduler: reminders);
+    final originalDue = DateTime.now().add(const Duration(hours: 1));
+    final updatedDue = DateTime.now().add(const Duration(hours: 3));
+
+    await store.addTask(title: 'Move reminder', dueAt: originalDue, reminderType: TaskReminderType.once);
+    final id = store.tasks.single.id;
+
+    await store.updateTask(id, title: 'Move reminder', dueAt: updatedDue, reminderType: TaskReminderType.once);
+
+    expect(reminders.cancelled, contains(id));
+    expect(store.tasks.single.dueAt, updatedDue.subtract(Duration(seconds: updatedDue.second, milliseconds: updatedDue.millisecond, microseconds: updatedDue.microsecond)));
+    expect(reminders.scheduled.where((value) => value == id), hasLength(2));
+    store.dispose();
+  });
+
+  test('removing a due date disables and cancels its reminder', () async {
+    final repository = MemoryTaskRepository();
+    final reminders = FakeReminderScheduler();
+    final store = TaskStore(repository: repository, reminderScheduler: reminders);
+
+    await store.addTask(
+      title: 'Remove schedule',
+      dueAt: DateTime.now().add(const Duration(hours: 1)),
+      reminderType: TaskReminderType.once,
+    );
+    final id = store.tasks.single.id;
+
+    await store.updateTask(id, title: 'Remove schedule', dueAt: null, reminderType: TaskReminderType.none);
+
+    expect(store.tasks.single.dueAt, isNull);
+    expect(store.tasks.single.reminderType, TaskReminderType.none);
+    expect(reminders.cancelled, contains(id));
+    expect(reminders.scheduled.where((value) => value == id), hasLength(1));
+    store.dispose();
+  });
+
+  test('turning a reminder off does not leave a new schedule', () async {
+    final repository = MemoryTaskRepository();
+    final reminders = FakeReminderScheduler();
+    final store = TaskStore(repository: repository, reminderScheduler: reminders);
+    final due = DateTime.now().add(const Duration(hours: 1));
+
+    await store.addTask(title: 'Disable reminder', dueAt: due, reminderType: TaskReminderType.once);
+    final id = store.tasks.single.id;
+    final scheduledCount = reminders.scheduled.length;
+
+    await store.updateTask(id, title: 'Disable reminder', dueAt: due, reminderType: TaskReminderType.none);
+
+    expect(reminders.cancelled, contains(id));
+    expect(reminders.scheduled.length, scheduledCount);
+    store.dispose();
+  });
+
   test('rejects a reminder without a due time', () async {
     final store = TaskStore(
       repository: MemoryTaskRepository(),
