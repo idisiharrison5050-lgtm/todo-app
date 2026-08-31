@@ -72,7 +72,7 @@ void main() {
     store.dispose();
   });
 
-  test('loads persisted tasks from the repository', () async {
+  testWidgets('loads persisted tasks from the repository', (WidgetTester tester) async {
     final repository = MemoryTaskRepository();
     final reminders = FakeReminderScheduler();
     final first = TaskStore(repository: repository, reminderScheduler: reminders);
