@@ -50,6 +50,16 @@ void main() {
     await tester.tap(find.text('Settings').first);
     await tester.pump();
     expect(find.text('Local storage'), findsOneWidget);
+    expect(find.text('Reminders are enabled'), findsOneWidget);
+
+    final notificationSwitch = find.byType(SwitchListTile).first;
+    await tester.tap(notificationSwitch);
+    await tester.pump();
+    expect(find.text('All task reminders are turned off'), findsOneWidget);
+
+    await tester.tap(notificationSwitch);
+    await tester.pump();
+    expect(find.text('Reminders are enabled'), findsOneWidget);
 
     store.dispose();
   });
