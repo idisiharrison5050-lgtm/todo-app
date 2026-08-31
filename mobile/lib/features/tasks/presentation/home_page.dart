@@ -67,7 +67,10 @@ class TaskListView extends StatelessWidget {
       if (filter == TaskFilter.all) return true;
       if (task.dueAt == null) return filter == TaskFilter.today;
       final due = task.dueAt!;
-      if (filter == TaskFilter.today) return due.year == now.year && due.month == now.month && due.day == now.day;
+      if (filter == TaskFilter.today) {
+        // Today includes overdue work so it cannot silently disappear.
+        return due.isBefore(DateTime(now.year, now.month, now.day + 1));
+      }
       return due.isAfter(DateTime(now.year, now.month, now.day + 1));
     }).toList()..sort((a, b) {
       if (a.dueAt == null && b.dueAt == null) return 0;
