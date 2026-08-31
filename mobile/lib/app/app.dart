@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'theme/app_theme.dart';
 import '../features/tasks/application/task_store.dart';
-import '../features/tasks/presentation/today_page.dart';
+import '../features/tasks/presentation/home_page.dart';
 
 class TodoApp extends StatefulWidget {
   const TodoApp({super.key});
@@ -40,11 +40,9 @@ class _TodoAppState extends State<TodoApp> {
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return TodayPage(store: _taskStore);
+          return HomePage(store: _taskStore);
         },
       ),
     );
