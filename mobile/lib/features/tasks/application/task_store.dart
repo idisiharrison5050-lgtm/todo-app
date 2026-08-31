@@ -72,7 +72,7 @@ class TaskStore extends ChangeNotifier {
     required String title,
     String notes = '',
     DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.once,
+    TaskReminderType reminderType = TaskReminderType.none,
     Duration? reminderInterval,
     TaskPriority priority = TaskPriority.normal,
   }) async {
@@ -109,7 +109,7 @@ class TaskStore extends ChangeNotifier {
     required String title,
     String notes = '',
     DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.once,
+    TaskReminderType reminderType = TaskReminderType.none,
     Duration? reminderInterval,
     TaskPriority priority = TaskPriority.normal,
   }) async {
