@@ -90,32 +90,82 @@ class TaskStore extends ChangeNotifier {
     final due = task.dueAt!;
     DateTime next = due;
     switch (task.repeat) {
-      case TaskRepeat.daily: next = due.add(const Duration(days: 1)); break;
+      case TaskRepeat.daily:
+        next = due.add(const Duration(days: 1));
+        break;
       case TaskRepeat.weekdays:
         next = due.add(const Duration(days: 1));
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) next = next.add(const Duration(days: 1));
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+          next = next.add(const Duration(days: 1));
+        }
         break;
-      case TaskRepeat.weekly: next = due.add(const Duration(days: 7)); break;
-      case TaskRepeat.monthly: next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute); break;
-      case TaskRepeat.custom: next = due.add(Duration(days: task.repeatIntervalDays ?? 1)); break;
-      case TaskRepeat.none: return task.copyWith(isCompleted: true);
+      case TaskRepeat.weekly:
+        next = due.add(const Duration(days: 7));
+        break;
+      case TaskRepeat.monthly:
+        next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute);
+        break;
+      case TaskRepeat.custom:
+        next = due.add(Duration(days: task.repeatIntervalDays ?? 1));
+        break;
+      case TaskRepeat.none:
+        return task.copyWith(isCompleted: true);
     }
     return task.copyWith(dueAt: next, isCompleted: false);
   }
 
-  Future<void> deleteTask(String id) async { await _repository.deleteTask(id); _tasks.removeWhere((task) => task.id == id); await _reminderScheduler.cancel(id); notifyListeners(); }
-
-  Future<void> clearCompleted() async { final completed = _tasks.where((task) => task.isCompleted).toList(growable: false); for (final task in completed) { await _repository.deleteTask(task.id); await _reminderScheduler.cancel(task.id); } _tasks.removeWhere((task) => task.isCompleted); notifyListeners(); }
-
-  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
-    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) throw ArgumentError('Task date and time must be in the future.');
-    if (reminderType != TaskReminderType.none && dueAt == null) throw ArgumentError('A reminder requires a due date and time.');
-    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) throw ArgumentError('A repeating reminder must have a valid interval.');
+  Future<void> deleteTask(String id) async {
+    await _repository.deleteTask(id);
+    _tasks.removeWhere((task) => task.id == id);
+    await _reminderScheduler.cancel(id);
+    notifyListeners();
   }
 
-  Future<void> _restoreReminders() async { final tasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false); if (tasks.isEmpty) return; final permitted = await _reminderScheduler.requestPermission(); if (!permitted && !kIsWeb) return; for (final task in tasks) await _reminderScheduler.schedule(task); }
-  Future<void> _syncReminder(Task task) async { await _reminderScheduler.cancel(task.id); if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return; final permitted = await _reminderScheduler.requestPermission(); if (!permitted && !kIsWeb) return; await _reminderScheduler.schedule(task); }
+  Future<void> clearCompleted() async {
+    final completed = _tasks.where((task) => task.isCompleted).toList(growable: false);
+    for (final task in completed) {
+      await _repository.deleteTask(task.id);
+      await _reminderScheduler.cancel(task.id);
+    }
+    _tasks.removeWhere((task) => task.isCompleted);
+    notifyListeners();
+  }
+
+  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
+    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
+      throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (reminderType != TaskReminderType.none && dueAt == null) {
+      throw ArgumentError('A reminder requires a due date and time.');
+    }
+    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
+      throw ArgumentError('A repeating reminder must have a valid interval.');
+    }
+  }
+
+  Future<void> _restoreReminders() async {
+    final tasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false);
+    if (tasks.isEmpty) return;
+    final permitted = await _reminderScheduler.requestPermission();
+    if (!permitted && !kIsWeb) return;
+    for (final task in tasks) {
+      await _reminderScheduler.schedule(task);
+    }
+  }
+
+  Future<void> _syncReminder(Task task) async {
+    await _reminderScheduler.cancel(task.id);
+    if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return;
+    final permitted = await _reminderScheduler.requestPermission();
+    if (!permitted && !kIsWeb) return;
+    await _reminderScheduler.schedule(task);
+  }
+
   DateTime? _normalizeDueAt(DateTime? value) => value == null ? null : DateTime(value.year, value.month, value.day, value.hour, value.minute);
 
-  @override void dispose() { _repository.close(); super.dispose(); }
+  @override
+  void dispose() {
+    _repository.close();
+    super.dispose();
+  }
 }
