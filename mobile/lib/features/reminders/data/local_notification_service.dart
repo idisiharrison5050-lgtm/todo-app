@@ -52,13 +52,6 @@ class LocalNotificationService {
     return (androidGranted ?? false) || (iosGranted ?? false);
   }
 
-  Future<void> openNotificationSettings() async {
-    if (kIsWeb) return;
-    await initialize();
-    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await android?.openNotificationSettings();
-  }
-
   Future<void> scheduleOneTime({
     required int id,
     required String title,
@@ -86,7 +79,7 @@ class LocalNotificationService {
           priority: Priority.max,
           playSound: true,
           enableVibration: true,
-          category: AndroidNotificationCategory.alarm,
+          category: AndroidNotificationCategory.reminder,
           visibility: NotificationVisibility.public,
         ),
         iOS: DarwinNotificationDetails(),
