@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_mobile/features/reminders/application/reminder_scheduler.dart';
 import 'package:todo_mobile/features/tasks/application/task_store.dart';
 import 'package:todo_mobile/features/tasks/data/task_repository_memory.dart';
+import 'package:todo_mobile/features/tasks/domain/task.dart';
 import 'package:todo_mobile/features/tasks/presentation/home_page.dart';
 import 'package:todo_mobile/features/tasks/presentation/task_detail_page.dart';
 import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
