@@ -25,6 +25,16 @@ class LocalNotificationService {
     await _plugin.initialize(
       settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
     );
+
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'todo_reminders',
+        'Task reminders',
+        description: 'Reminders for scheduled tasks',
+        importance: Importance.high,
+      ),
+    );
     _initialized = true;
   }
 
@@ -32,20 +42,21 @@ class LocalNotificationService {
     if (kIsWeb) return false;
     await initialize();
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final androidGranted = await android?.requestNotificationsPermission();
     await android?.requestExactAlarmsPermission();
 
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
-    final iosGranted = await ios?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    final ios = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    final iosGranted = await ios?.requestPermissions(alert: true, badge: true, sound: true);
 
     return (androidGranted ?? false) || (iosGranted ?? false);
+  }
+
+  Future<void> openNotificationSettings() async {
+    if (kIsWeb) return;
+    await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await android?.openNotificationSettings();
   }
 
   Future<void> scheduleOneTime({
@@ -57,16 +68,7 @@ class LocalNotificationService {
     await initialize();
     if (kIsWeb) return;
 
-    // Date/time pickers represent reminders to the minute. Explicitly clear
-    // seconds and milliseconds so task creation time can never leak into the
-    // scheduled notification time.
-    final minute = DateTime(
-      scheduledAt.year,
-      scheduledAt.month,
-      scheduledAt.day,
-      scheduledAt.hour,
-      scheduledAt.minute,
-    );
+    final minute = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day, scheduledAt.hour, scheduledAt.minute);
     final scheduled = tz.TZDateTime.from(minute, tz.local);
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
 
@@ -80,8 +82,12 @@ class LocalNotificationService {
           'todo_reminders',
           'Task reminders',
           channelDescription: 'Reminders for scheduled tasks',
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: Importance.max,
+          priority: Priority.max,
+          playSound: true,
+          enableVibration: true,
+          category: AndroidNotificationCategory.alarm,
+          visibility: NotificationVisibility.public,
         ),
         iOS: DarwinNotificationDetails(),
       ),
