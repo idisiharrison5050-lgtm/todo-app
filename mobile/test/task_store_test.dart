@@ -70,19 +70,48 @@ void main() {
     store.dispose();
   });
 
-  test('loads persisted tasks from the repository', () async {
+  test('loads persisted tasks from the repository and restores reminders', () async {
     final repository = MemoryTaskRepository();
     final reminders = FakeReminderScheduler();
     final first = TaskStore(repository: repository, reminderScheduler: reminders);
 
-    await first.addTask(title: 'Persistent task');
+    await first.addTask(
+      title: 'Persistent task',
+      dueAt: DateTime.now().add(const Duration(hours: 1)),
+      reminderType: TaskReminderType.once,
+    );
+    final savedId = first.tasks.single.id;
     first.dispose();
 
+    reminders.scheduled.clear();
     final second = TaskStore(repository: repository, reminderScheduler: reminders);
     await second.load();
 
     expect(second.tasks, hasLength(1));
     expect(second.tasks.single.title, 'Persistent task');
+    expect(reminders.scheduled, contains(savedId));
+    second.dispose();
+  });
+
+  test('does not restore reminders for completed tasks', () async {
+    final repository = MemoryTaskRepository();
+    final reminders = FakeReminderScheduler();
+    final first = TaskStore(repository: repository, reminderScheduler: reminders);
+
+    await first.addTask(
+      title: 'Completed task',
+      dueAt: DateTime.now().add(const Duration(hours: 1)),
+      reminderType: TaskReminderType.once,
+    );
+    await first.toggleCompleted(first.tasks.single.id);
+    first.dispose();
+
+    reminders.scheduled.clear();
+    final second = TaskStore(repository: repository, reminderScheduler: reminders);
+    await second.load();
+
+    expect(second.tasks.single.isCompleted, isTrue);
+    expect(reminders.scheduled, isEmpty);
     second.dispose();
   });
 
