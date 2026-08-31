@@ -49,6 +49,9 @@ class TaskStore extends ChangeNotifier {
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
     }
+    if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
+      throw ArgumentError('A reminder requires a due date and time.');
+    }
     if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
       throw ArgumentError('A repeating reminder must have a valid interval.');
     }
@@ -84,6 +87,9 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
+      throw ArgumentError('A reminder requires a due date and time.');
     }
     if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
       throw ArgumentError('A repeating reminder must have a valid interval.');
@@ -136,9 +142,7 @@ class TaskStore extends ChangeNotifier {
 
   Future<void> _syncReminder(Task task) async {
     await _reminderScheduler.cancel(task.id);
-    if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) {
-      return;
-    }
+    if (task.isCompleted || task.reminderType == TaskReminderType.none || task.dueAt == null) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
     await _reminderScheduler.schedule(task);
