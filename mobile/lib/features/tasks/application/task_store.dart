@@ -28,82 +28,32 @@ class TaskStore extends ChangeNotifier {
   Future<void> load() async {
     if (_isLoaded) return;
     final loaded = await _repository.getTasks();
-    _tasks
-      ..clear()
-      ..addAll(loaded);
+    _tasks..clear()..addAll(loaded);
     _isLoaded = true;
     await _restoreReminders();
     notifyListeners();
   }
 
-  Future<void> addTask({
-    required String title,
-    String notes = '',
-    DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.none,
-    Duration? reminderInterval,
-    TaskPriority priority = TaskPriority.normal,
-  }) async {
+  Future<void> addTask({required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal}) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
-      throw ArgumentError('Task date and time must be in the future.');
-    }
-    if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
-      throw ArgumentError('A reminder requires a due date and time.');
-    }
-    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
-      throw ArgumentError('A repeating reminder must have a valid interval.');
-    }
-
-    final task = Task(
-      id: _uuid.v4(),
-      title: normalizedTitle,
-      notes: notes.trim(),
-      dueAt: normalizedDueAt,
-      reminderType: reminderType,
-      reminderInterval: reminderInterval,
-      priority: priority,
-    );
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
+    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority);
     await _repository.saveTask(task);
     _tasks.add(task);
     await _syncReminder(task);
     notifyListeners();
   }
 
-  Future<void> updateTask(
-    String id, {
-    required String title,
-    String notes = '',
-    DateTime? dueAt,
-    TaskReminderType reminderType = TaskReminderType.none,
-    Duration? reminderInterval,
-    TaskPriority priority = TaskPriority.normal,
-  }) async {
+  Future<void> updateTask(String id, {required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal}) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    if (normalizedDueAt != null && normalizedDueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
-      throw ArgumentError('Task date and time must be in the future.');
-    }
-    if (reminderType != TaskReminderType.none && normalizedDueAt == null) {
-      throw ArgumentError('A reminder requires a due date and time.');
-    }
-    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
-      throw ArgumentError('A repeating reminder must have a valid interval.');
-    }
-
-    final updated = _tasks[index].copyWith(
-      title: normalizedTitle,
-      notes: notes.trim(),
-      dueAt: normalizedDueAt,
-      reminderType: reminderType,
-      reminderInterval: reminderInterval,
-      priority: priority,
-    );
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
+    final updated = _tasks[index].copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
     await _syncReminder(updated);
@@ -116,11 +66,7 @@ class TaskStore extends ChangeNotifier {
     final updated = _tasks[index].copyWith(isCompleted: !_tasks[index].isCompleted);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
-    if (updated.isCompleted) {
-      await _reminderScheduler.cancel(updated.id);
-    } else {
-      await _syncReminder(updated);
-    }
+    if (updated.isCompleted) await _reminderScheduler.cancel(updated.id); else await _syncReminder(updated);
     notifyListeners();
   }
 
@@ -133,12 +79,15 @@ class TaskStore extends ChangeNotifier {
 
   Future<void> clearCompleted() async {
     final completed = _tasks.where((task) => task.isCompleted).toList(growable: false);
-    for (final task in completed) {
-      await _repository.deleteTask(task.id);
-      await _reminderScheduler.cancel(task.id);
-    }
+    for (final task in completed) { await _repository.deleteTask(task.id); await _reminderScheduler.cancel(task.id); }
     _tasks.removeWhere((task) => task.isCompleted);
     notifyListeners();
+  }
+
+  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
+    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) throw ArgumentError('Task date and time must be in the future.');
+    if (reminderType != TaskReminderType.none && dueAt == null) throw ArgumentError('A reminder requires a due date and time.');
+    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) throw ArgumentError('A repeating reminder must have a valid interval.');
   }
 
   Future<void> _restoreReminders() async {
@@ -146,9 +95,7 @@ class TaskStore extends ChangeNotifier {
     if (reminderTasks.isEmpty) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
-    for (final task in reminderTasks) {
-      await _reminderScheduler.schedule(task);
-    }
+    for (final task in reminderTasks) await _reminderScheduler.schedule(task);
   }
 
   Future<void> _syncReminder(Task task) async {
@@ -159,14 +106,8 @@ class TaskStore extends ChangeNotifier {
     await _reminderScheduler.schedule(task);
   }
 
-  DateTime? _normalizeDueAt(DateTime? value) {
-    if (value == null) return null;
-    return DateTime(value.year, value.month, value.day, value.hour, value.minute);
-  }
+  DateTime? _normalizeDueAt(DateTime? value) => value == null ? null : DateTime(value.year, value.month, value.day, value.hour, value.minute);
 
   @override
-  void dispose() {
-    _repository.close();
-    super.dispose();
-  }
+  void dispose() { _repository.close(); super.dispose(); }
 }
