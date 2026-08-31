@@ -1,38 +1,41 @@
-# Mobile Client
+# Todo Mobile MVP
 
-This directory is reserved for the Flutter iOS/Android application.
+A local-first Flutter todo app with scheduled Android reminders.
 
-## Target
+## MVP behavior
 
-Use the current stable Flutter release approved for the project. Flutter 3.47 is the current stable release as of August 2026. Pin the SDK range in the eventual Flutter project rather than relying on an arbitrary future SDK.
+- Create, edit, complete and delete tasks.
+- Tasks persist locally on supported mobile platforms.
+- A task with a due date/time automatically gets a one-time reminder.
+- The reminder can be switched off per task.
+- Repeating reminders are optional.
+- Editing a task replaces its previous scheduled reminder.
+- Completing or deleting a task cancels its scheduled reminder.
+- Notification preference is persisted on the device.
+- Re-enabling notifications restores reminders for active scheduled tasks.
+- Reminder times are normalized to the selected minute.
+- Android reminders use exact scheduling and are configured to recover after device reboot/app replacement.
 
-## Responsibilities
+## Android verification
 
-- Premium task/reminder UI.
-- Secure credential storage.
-- Local task/reminder database.
-- Offline mutation queue.
-- API synchronization.
-- Local notification scheduling.
-- Notification actions and deep links.
-- Permission UX.
+The first Android build may install missing SDK/NDK/CMake components and can take several minutes. Subsequent builds should normally be much faster because Gradle and Android artifacts are cached.
 
-## Platform requirements
+For a physical Android device, enable USB debugging and run:
 
-### iOS
+```powershell
+flutter devices
+flutter run -d <device-id>
+```
 
-Use Apple's UserNotifications APIs through a maintained Flutter notification abstraction. Request notification authorization in context, after the user understands why reminders need it. Apple requires authorization before user-facing notifications and provides local notification scheduling through UserNotifications. See the project's architecture/security docs for the exact policy. Do not request unrelated permissions in MVP.
+Keep the device connected while testing scheduled reminders. Test at least once with the screen locked and once with the screen on. Android battery optimization can affect delivery on some devices.
 
-### Android
+## Verification commands
 
-Target a modern Android SDK. Android 13/API 33+ requires the `POST_NOTIFICATIONS` runtime permission for non-exempt notifications. Request it in context after the user understands reminders, and handle denial without breaking task management. Notification behavior must account for Android background/battery restrictions.
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+```
 
-## Security
-
-Never store API bearer tokens in shared preferences/plaintext files. Use platform secure storage backed by iOS Keychain and Android Keystore mechanisms. Never log tokens or private task contents.
-
-## Build prerequisites
-
-Flutter, Android Studio/SDK, Xcode (macOS for iOS builds), CocoaPods as required by the selected plugin set, and physical test devices for notification validation.
-
-The mobile project should be generated in this directory during the Flutter foundation phase; this README intentionally avoids committing generated build artifacts or platform signing secrets.
+The MVP does not require an account, cloud sync, or network connection for basic task/reminder functionality.
