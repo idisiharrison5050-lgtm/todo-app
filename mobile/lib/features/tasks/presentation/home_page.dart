@@ -46,9 +46,7 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: _index == 4
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store)),
-              ),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store))),
               icon: const Icon(Icons.add),
               label: const Text('Add task'),
             ),
@@ -58,35 +56,29 @@ class _HomePageState extends State<HomePage> {
 
 enum TaskFilter { today, upcoming, all, completed }
 
-class TaskListView extends StatelessWidget {
+class TaskListView extends StatefulWidget {
   const TaskListView({super.key, required this.store, required this.filter, required this.title});
   final TaskStore store;
   final TaskFilter filter;
   final String title;
 
   @override
+  State<TaskListView> createState() => _TaskListViewState();
+}
+
+class _TaskListViewState extends State<TaskListView> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final all = store.tasks;
+    final all = widget.store.tasks;
     final completed = all.where((task) => task.isCompleted).length;
     final active = all.length - completed;
-    final visible = all.where((task) {
-      if (filter == TaskFilter.completed) return task.isCompleted;
-      if (task.isCompleted) return false;
-      if (filter == TaskFilter.all) return true;
-      if (task.dueAt == null) return filter == TaskFilter.today;
-      final due = task.dueAt!;
-      final tomorrow = DateTime(now.year, now.month, now.day + 1);
-      if (filter == TaskFilter.today) return due.isBefore(tomorrow);
-      return !due.isBefore(tomorrow);
-    }).toList()
-      ..sort((a, b) {
-        if (a.dueAt == null && b.dueAt == null) return b.priority.index.compareTo(a.priority.index);
-        if (a.dueAt == null) return 1;
-        if (b.dueAt == null) return -1;
-        final dueCompare = a.dueAt!.compareTo(b.dueAt!);
-        return dueCompare != 0 ? dueCompare : b.priority.index.compareTo(a.priority.index);
-      });
+    final visible = all.where(_matchesFilter).toList()..sort(_compareTasks);
+    final filtered = _query.trim().isEmpty
+        ? visible
+        : visible.where((task) => '${task.title} ${task.notes}'.toLowerCase().contains(_query.trim().toLowerCase())).toList();
 
     return SafeArea(
       child: CustomScrollView(
@@ -101,59 +93,56 @@ class TaskListView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(widget.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.8)),
+                        const SizedBox(height: 4),
                         Text(
-                          title,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.8,
-                              ),
+                          widget.filter == TaskFilter.completed ? '$completed completed' : '$active active',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
-                        if (filter == TaskFilter.today) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            _dateLabel(now),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                        ] else ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            filter == TaskFilter.completed ? '$completed completed' : '$active active',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
-                  if (filter == TaskFilter.today) Chip(label: Text('$active left')),
+                  if (widget.filter == TaskFilter.today) Chip(label: Text('$active left')),
+                  if (widget.filter == TaskFilter.completed && completed > 0)
+                    IconButton(
+                      tooltip: 'Clear completed',
+                      onPressed: () => _clearCompleted(context),
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                    ),
                 ],
               ),
             ),
           ),
-          if (filter == TaskFilter.today)
+          if (widget.filter != TaskFilter.completed && all.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              sliver: SliverToBoxAdapter(
+                child: TextField(
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                    hintText: 'Search tasks',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty ? null : IconButton(onPressed: () => setState(() => _query = ''), icon: const Icon(Icons.clear)),
+                  ),
+                ),
+              ),
+            ),
+          if (widget.filter == TaskFilter.today)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               sliver: SliverToBoxAdapter(child: _ProgressCard(total: all.length, completed: completed)),
             ),
-          if (visible.isEmpty)
+          if (filtered.isEmpty)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-              sliver: SliverToBoxAdapter(child: _EmptyTasks(filter: filter)),
+              sliver: SliverToBoxAdapter(child: _EmptyTasks(filter: widget.filter, searching: _query.isNotEmpty)),
             )
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
               sliver: SliverList.separated(
-                itemCount: visible.length,
-                itemBuilder: (context, index) => _TaskCard(
-                  task: visible[index],
-                  store: store,
-                  now: now,
-                  showOverdue: filter == TaskFilter.today,
-                ),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) => _TaskCard(task: filtered[index], store: widget.store, now: now, showOverdue: widget.filter == TaskFilter.today),
                 separatorBuilder: (context, index) => const SizedBox(height: 10),
               ),
             ),
@@ -162,8 +151,41 @@ class TaskListView extends StatelessWidget {
     );
   }
 
-  String _dateLabel(DateTime date) =>
-      '${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][date.weekday - 1]}, ${const ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.month - 1]} ${date.day}';
+  bool _matchesFilter(Task task) {
+    if (widget.filter == TaskFilter.completed) return task.isCompleted;
+    if (task.isCompleted) return false;
+    if (widget.filter == TaskFilter.all) return true;
+    final due = task.dueAt;
+    if (due == null) return widget.filter == TaskFilter.today;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final tomorrow = todayStart.add(const Duration(days: 1));
+    if (widget.filter == TaskFilter.today) return due.isBefore(tomorrow);
+    return !due.isBefore(tomorrow);
+  }
+
+  int _compareTasks(Task a, Task b) {
+    if (a.dueAt == null && b.dueAt == null) return b.priority.index.compareTo(a.priority.index);
+    if (a.dueAt == null) return 1;
+    if (b.dueAt == null) return -1;
+    final dueCompare = a.dueAt!.compareTo(b.dueAt!);
+    return dueCompare != 0 ? dueCompare : b.priority.index.compareTo(a.priority.index);
+  }
+
+  Future<void> _clearCompleted(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear completed tasks?'),
+        content: const Text('This permanently removes every completed task.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Clear all')),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.store.clearCompleted();
+  }
 }
 
 class _TaskCard extends StatelessWidget {
@@ -182,7 +204,6 @@ class _TaskCard extends StatelessWidget {
       TaskPriority.normal => Icons.remove_rounded,
       TaskPriority.low => Icons.arrow_downward_rounded,
     };
-
     return Dismissible(
       key: ValueKey(task.id),
       direction: DismissDirection.endToStart,
@@ -200,29 +221,13 @@ class _TaskCard extends StatelessWidget {
           leading: Checkbox(value: task.isCompleted, onChanged: (_) => store.toggleCompleted(task.id)),
           title: Row(
             children: [
-              Expanded(
-                child: Text(
-                  task.title,
-                  style: TextStyle(
-                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              Expanded(child: Text(task.title, style: TextStyle(decoration: task.isCompleted ? TextDecoration.lineThrough : null, fontWeight: FontWeight.w700))),
               if (task.priority != TaskPriority.normal)
-                Icon(
-                  priorityIcon,
-                  size: 18,
-                  color: task.priority == TaskPriority.high ? scheme.error : scheme.primary,
-                ),
+                Icon(priorityIcon, size: 18, color: task.priority == TaskPriority.high ? scheme.error : scheme.primary),
             ],
           ),
           subtitle: _subtitle(context, overdue),
-          trailing: IconButton(
-            tooltip: 'Edit task',
-            onPressed: () => _edit(context),
-            icon: const Icon(Icons.more_horiz),
-          ),
+          trailing: IconButton(tooltip: 'Edit task', onPressed: () => _edit(context), icon: const Icon(Icons.more_horiz)),
           onTap: () => _edit(context),
         ),
       ),
@@ -235,16 +240,12 @@ class _TaskCard extends StatelessWidget {
       final label = overdue && showOverdue ? 'Overdue' : 'Due';
       parts.add('$label ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}');
     }
-    if (task.reminderType != TaskReminderType.none) {
-      parts.add(task.reminderType == TaskReminderType.interval ? 'Repeating reminder' : 'Reminder set');
-    }
+    if (task.reminderType != TaskReminderType.none) parts.add(task.reminderType == TaskReminderType.interval ? 'Repeating reminder' : 'Reminder set');
     if (task.notes.isNotEmpty) parts.add(task.notes);
     return parts.isEmpty ? null : Text(parts.join(' • '), maxLines: 2, overflow: TextOverflow.ellipsis);
   }
 
-  void _edit(BuildContext context) => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => AddTaskPage(store: store, task: task)),
-      );
+  void _edit(BuildContext context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: store, task: task)));
 
   Future<bool> _confirmDelete(BuildContext context) async {
     final result = await showDialog<bool>(
@@ -277,19 +278,12 @@ class _ProgressCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: scheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    total == 0 ? 'A fresh start' : '$completed of $total tasks completed',
-                    style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer),
-                  ),
-                ),
-                Text('${(progress * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.check_circle_rounded, color: scheme.primary),
+              const SizedBox(width: 10),
+              Expanded(child: Text(total == 0 ? 'A fresh start' : '$completed of $total tasks completed', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer))),
+              Text('${(progress * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
+            ]),
             const SizedBox(height: 12),
             ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(value: progress, minHeight: 8)),
           ],
@@ -300,30 +294,31 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _EmptyTasks extends StatelessWidget {
-  const _EmptyTasks({required this.filter});
+  const _EmptyTasks({required this.filter, this.searching = false});
   final TaskFilter filter;
+  final bool searching;
 
   @override
   Widget build(BuildContext context) {
-    final text = switch (filter) {
-      TaskFilter.completed => ('Nothing completed yet', 'Complete a task and it will appear here.'),
-      TaskFilter.upcoming => ('Nothing upcoming', 'Schedule a task to see it here.'),
-      TaskFilter.all => ('No active tasks', 'You are all caught up.'),
-      TaskFilter.today => ('Nothing planned today', 'Add a task and choose when Todo should remind you.'),
-    };
+    final text = searching
+        ? ('No matching tasks', 'Try a different title or note.')
+        : switch (filter) {
+            TaskFilter.completed => ('Nothing completed yet', 'Complete a task and it will appear here.'),
+            TaskFilter.upcoming => ('Nothing upcoming', 'Schedule a task to see it here.'),
+            TaskFilter.all => ('No active tasks', 'You are all caught up.'),
+            TaskFilter.today => ('Nothing planned today', 'Add a task and choose when Todo should remind you.'),
+          };
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       decoration: BoxDecoration(border: Border.all(color: scheme.outlineVariant), borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        children: [
-          Icon(Icons.task_alt_rounded, size: 48, color: scheme.primary),
-          const SizedBox(height: 16),
-          Text(text.$1, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(text.$2, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-        ],
-      ),
+      child: Column(children: [
+        Icon(Icons.task_alt_rounded, size: 48, color: scheme.primary),
+        const SizedBox(height: 16),
+        Text(text.$1, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text(text.$2, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+      ]),
     );
   }
 }
@@ -340,46 +335,22 @@ class SettingsView extends StatelessWidget {
         children: [
           Text('Settings', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text(
-            'Todo keeps your tasks and reminders on this device.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-          ),
+          Text('Todo keeps your tasks and reminders on this device.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
           const SizedBox(height: 24),
-          Card(
-            child: Column(
-              children: const [
-                ListTile(
-                  leading: Icon(Icons.notifications_active_outlined),
-                  title: Text('Notifications'),
-                  subtitle: Text('Reminder notifications are requested when you save a reminder.'),
-                ),
-                Divider(height: 1),
-                ListTile(
-                  leading: Icon(Icons.storage_outlined),
-                  title: Text('Local storage'),
-                  subtitle: Text('Tasks persist after closing and reopening the app.'),
-                ),
-                Divider(height: 1),
-                ListTile(
-                  leading: Icon(Icons.alarm_outlined),
-                  title: Text('Exact reminders'),
-                  subtitle: Text('Android reminders target the selected minute and can fire while idle.'),
-                ),
-              ],
-            ),
-          ),
+          Card(child: Column(children: const [
+            ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text('Notifications'), subtitle: Text('Reminder notifications are requested when you save a reminder.')),
+            Divider(height: 1),
+            ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing and reopening the app.')),
+            Divider(height: 1),
+            ListTile(leading: Icon(Icons.alarm_outlined), title: Text('Exact reminders'), subtitle: Text('Android reminders target the selected minute and can fire while idle.')),
+          ])),
           const SizedBox(height: 20),
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: scheme.primaryContainer,
-                child: Icon(Icons.check_rounded, color: scheme.onPrimaryContainer),
-              ),
-              title: const Text('Todo'),
-              subtitle: const Text('Simple tasks. Clear focus.'),
-              trailing: const Text('v1.0'),
-            ),
-          ),
+          Card(child: ListTile(
+            leading: CircleAvatar(backgroundColor: scheme.primaryContainer, child: Icon(Icons.check_rounded, color: scheme.onPrimaryContainer)),
+            title: const Text('Todo'),
+            subtitle: const Text('Simple tasks. Clear focus.'),
+            trailing: const Text('v1.0'),
+          )),
         ],
       ),
     );
