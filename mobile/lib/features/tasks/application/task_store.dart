@@ -45,6 +45,9 @@ class TaskStore extends ChangeNotifier {
   }) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
+    if (dueAt != null && dueAt.isBefore(DateTime.now())) {
+      throw ArgumentError('Task date and time must be in the future.');
+    }
 
     final task = Task(
       id: _uuid.v4(),
@@ -74,6 +77,9 @@ class TaskStore extends ChangeNotifier {
     if (index == -1) return;
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
+    if (dueAt != null && dueAt.isBefore(DateTime.now())) {
+      throw ArgumentError('Task date and time must be in the future.');
+    }
 
     final updated = _tasks[index].copyWith(
       title: normalizedTitle,
@@ -107,6 +113,16 @@ class TaskStore extends ChangeNotifier {
     await _repository.deleteTask(id);
     _tasks.removeWhere((task) => task.id == id);
     await _reminderScheduler.cancel(id);
+    notifyListeners();
+  }
+
+  Future<void> clearCompleted() async {
+    final completed = _tasks.where((task) => task.isCompleted).toList();
+    for (final task in completed) {
+      await _repository.deleteTask(task.id);
+      await _reminderScheduler.cancel(task.id);
+    }
+    _tasks.removeWhere((task) => task.isCompleted);
     notifyListeners();
   }
 
