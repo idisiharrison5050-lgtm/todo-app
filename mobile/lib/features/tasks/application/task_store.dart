@@ -7,14 +7,11 @@ import '../data/task_repository_factory.dart';
 import '../domain/task.dart';
 
 class TaskStore extends ChangeNotifier {
-  TaskStore({
-    TaskRepository? repository,
-    ReminderScheduler? reminderScheduler,
-  })  : _repository = repository ?? createTaskRepository(),
+  TaskStore({TaskRepository? repository, ReminderScheduler? reminderScheduler})
+      : _repository = repository ?? createTaskRepository(),
         _reminderScheduler = reminderScheduler ?? _createReminderScheduler();
 
   static const Uuid _uuid = Uuid();
-
   final TaskRepository _repository;
   final ReminderScheduler _reminderScheduler;
   final List<Task> _tasks = <Task>[];
@@ -47,15 +44,13 @@ class TaskStore extends ChangeNotifier {
     TaskPriority priority = TaskPriority.normal,
   }) async {
     final normalizedTitle = title.trim();
-    if (normalizedTitle.isEmpty) {
-      throw ArgumentError('Task title cannot be empty.');
-    }
+    if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
 
     final task = Task(
       id: _uuid.v4(),
       title: normalizedTitle,
       notes: notes.trim(),
-      dueAt: dueAt,
+      dueAt: _normalizeDueAt(dueAt),
       reminderType: reminderType,
       reminderInterval: reminderInterval,
       priority: priority,
@@ -77,16 +72,13 @@ class TaskStore extends ChangeNotifier {
   }) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
-
     final normalizedTitle = title.trim();
-    if (normalizedTitle.isEmpty) {
-      throw ArgumentError('Task title cannot be empty.');
-    }
+    if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
 
     final updated = _tasks[index].copyWith(
       title: normalizedTitle,
       notes: notes.trim(),
-      dueAt: dueAt,
+      dueAt: _normalizeDueAt(dueAt),
       reminderType: reminderType,
       reminderInterval: reminderInterval,
       priority: priority,
@@ -123,10 +115,14 @@ class TaskStore extends ChangeNotifier {
       await _reminderScheduler.cancel(task.id);
       return;
     }
-
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
     await _reminderScheduler.schedule(task);
+  }
+
+  DateTime? _normalizeDueAt(DateTime? value) {
+    if (value == null) return null;
+    return DateTime(value.year, value.month, value.day, value.hour, value.minute);
   }
 
   @override
