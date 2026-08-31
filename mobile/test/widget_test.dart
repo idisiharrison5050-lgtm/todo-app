@@ -105,7 +105,7 @@ void main() {
     expect(find.text('Tomorrow task'), findsOneWidget);
 
     await tester.tap(find.text('Tomorrow task'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Task details'), findsOneWidget);
     expect(find.text('Schedule'), findsOneWidget);
     expect(find.text('Priority'), findsOneWidget);
