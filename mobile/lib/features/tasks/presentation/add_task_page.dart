@@ -61,6 +61,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     setState(() {
       _dueAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      if (_reminderType == TaskReminderType.none) {
+        _reminderType = TaskReminderType.once;
+      }
     });
   }
 
@@ -68,6 +71,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final value = DateTime.now().add(offset);
     setState(() {
       _dueAt = DateTime(value.year, value.month, value.day, value.hour, value.minute);
+      if (_reminderType == TaskReminderType.none) {
+        _reminderType = TaskReminderType.once;
+      }
     });
   }
 
@@ -75,6 +81,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final now = DateTime.now().add(const Duration(days: 1));
     setState(() {
       _dueAt = DateTime(now.year, now.month, now.day, 9, 0);
+      if (_reminderType == TaskReminderType.none) {
+        _reminderType = TaskReminderType.once;
+      }
+    });
+  }
+
+  void _clearDueDate() {
+    setState(() {
+      _dueAt = null;
+      _reminderType = TaskReminderType.none;
     });
   }
 
@@ -191,19 +207,28 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 ? const Icon(Icons.chevron_right)
                 : IconButton(
                     tooltip: 'Clear due date',
-                    onPressed: () => setState(() => _dueAt = null),
+                    onPressed: _clearDueDate,
                     icon: const Icon(Icons.close),
                   ),
             onTap: _pickDateTime,
           ),
           const Divider(height: 24),
           Text('Reminder', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(
+            _reminderType == TaskReminderType.none
+                ? 'Off'
+                : _reminderType == TaskReminderType.once
+                    ? 'On — remind once'
+                    : 'On — repeating',
+            style: theme.textTheme.bodySmall,
+          ),
           const SizedBox(height: 8),
           DropdownButtonFormField<TaskReminderType>(
             initialValue: _reminderType,
             decoration: const InputDecoration(prefixIcon: Icon(Icons.notifications_outlined)),
             items: const [
-              DropdownMenuItem(value: TaskReminderType.none, child: Text('No reminder')),
+              DropdownMenuItem(value: TaskReminderType.none, child: Text('Turn reminder off')),
               DropdownMenuItem(value: TaskReminderType.once, child: Text('Remind once')),
               DropdownMenuItem(value: TaskReminderType.interval, child: Text('Repeat reminder')),
             ],
