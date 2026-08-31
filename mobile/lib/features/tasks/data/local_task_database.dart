@@ -1,14 +1,21 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
+import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
 import 'task_repository.dart';
 
 class LocalTaskDatabase implements TaskRepository {
   static const _databaseName = 'todo.db';
-  static const _databaseVersion = 1;
+  static const _databaseVersion = 2;
   static const _table = 'tasks';
 
+  LocalTaskDatabase({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
+
+  final TokenStorage _storage;
   Database? _database;
 
   Future<Database> get _db async {
@@ -23,6 +30,7 @@ class LocalTaskDatabase implements TaskRepository {
         await db.execute('''
           CREATE TABLE $_table (
             id TEXT PRIMARY KEY,
+            account_key TEXT NOT NULL DEFAULT '',
             title TEXT NOT NULL,
             notes TEXT NOT NULL DEFAULT '',
             due_at TEXT,
@@ -32,39 +40,54 @@ class LocalTaskDatabase implements TaskRepository {
             is_completed INTEGER NOT NULL DEFAULT 0
           )
         ''');
-        await db.execute(
-          'CREATE INDEX idx_tasks_due_at ON $_table(due_at)',
-        );
+        await db.execute('CREATE INDEX idx_tasks_due_at ON $_table(due_at)');
+        await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute("ALTER TABLE $_table ADD COLUMN account_key TEXT NOT NULL DEFAULT ''");
+          await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)');
+        }
       },
     );
     return _database!;
   }
 
+  Future<String> _accountKey() async {
+    final token = await _storage.read();
+    if (token == null || token.isEmpty) return 'anonymous';
+    return sha256.convert(utf8.encode(token)).toString();
+  }
+
   @override
   Future<List<Task>> getTasks() async {
+    final accountKey = await _accountKey();
     final rows = await (await _db).query(
       _table,
+      where: 'account_key = ?',
+      whereArgs: [accountKey],
       orderBy: 'due_at IS NULL, due_at ASC, id ASC',
     );
-
     return rows.map(_fromRow).toList(growable: false);
   }
 
   @override
   Future<void> saveTask(Task task) async {
+    final accountKey = await _accountKey();
     await (await _db).insert(
       _table,
-      _toRow(task),
+      {..._toRow(task), 'account_key': accountKey},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
   @override
   Future<void> deleteTask(String id) async {
+    final accountKey = await _accountKey();
     await (await _db).delete(
       _table,
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, accountKey],
     );
   }
 
