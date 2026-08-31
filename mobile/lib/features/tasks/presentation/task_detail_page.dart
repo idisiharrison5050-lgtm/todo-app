@@ -13,36 +13,24 @@ class TaskDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final current = store.tasks.where((value) => value.id == task.id).firstWhere((_) => true, orElse: () => task);
+    final current = store.tasks.firstWhere((value) => value.id == task.id, orElse: () => task);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task details'),
         actions: [
-          IconButton(
-            tooltip: 'Edit task',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: store, task: current))),
-          ),
+          IconButton(tooltip: 'Edit task', icon: const Icon(Icons.edit_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: store, task: current)))),
           IconButton(tooltip: 'Delete task', icon: const Icon(Icons.delete_outline), onPressed: () => _delete(context, current)),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(value: current.isCompleted, onChanged: (_) => store.toggleCompleted(current.id)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(current.title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, decoration: current.isCompleted ? TextDecoration.lineThrough : null))),
-                ],
-              ),
-            ),
-          ),
+          Card(child: Padding(padding: const EdgeInsets.all(20), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Checkbox(value: current.isCompleted, onChanged: (_) => store.toggleCompleted(current.id)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(current.title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, decoration: current.isCompleted ? TextDecoration.lineThrough : null))),
+          ]))),
           if (current.notes.isNotEmpty) ...[
             const SizedBox(height: 12),
             _InfoCard(icon: Icons.notes_outlined, title: 'Notes', child: Text(current.notes, style: Theme.of(context).textTheme.bodyLarge)),
@@ -50,10 +38,7 @@ class TaskDetailPage extends StatelessWidget {
           const SizedBox(height: 12),
           _InfoCard(icon: Icons.schedule_outlined, title: 'Schedule', child: Text(current.dueAt == null ? 'No due date' : _formatDateTime(context, current.dueAt!), style: Theme.of(context).textTheme.bodyLarge)),
           const SizedBox(height: 12),
-          _InfoCard(icon: Icons.notifications_outlined, title: 'Reminder', child: Text(
-            current.reminderType == TaskReminderType.none ? 'No reminder' : current.reminderType == TaskReminderType.once ? 'Remind once' : 'Every ${_formatDuration(current.reminderInterval)}',
-            style: Theme.of(context).textTheme.bodyLarge,
-          )),
+          _InfoCard(icon: Icons.notifications_outlined, title: 'Reminder', child: Text(current.reminderType == TaskReminderType.none ? 'No reminder' : current.reminderType == TaskReminderType.once ? 'Remind once' : 'Every ${_formatDuration(current.reminderInterval)}', style: Theme.of(context).textTheme.bodyLarge)),
           const SizedBox(height: 12),
           _InfoCard(icon: Icons.flag_outlined, title: 'Priority', child: Text(_priorityLabel(current.priority), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: current.priority == TaskPriority.high ? scheme.error : null))),
           const SizedBox(height: 28),
@@ -64,17 +49,14 @@ class TaskDetailPage extends StatelessWidget {
   }
 
   Future<void> _delete(BuildContext context, Task current) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete task?'),
-        content: Text('Delete “${current.title}”? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton.tonal(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
-        ],
-      ),
-    );
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Delete task?'),
+      content: Text('Delete “${current.title}”? This cannot be undone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+        FilledButton.tonal(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
+      ],
+    ));
     if (confirmed == true && context.mounted) {
       await store.deleteTask(current.id);
       if (context.mounted) Navigator.pop(context);
@@ -104,11 +86,9 @@ class _InfoCard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon),
-      const SizedBox(width: 14),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 6), child])),
-    ])));
-  }
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Icon(icon),
+    const SizedBox(width: 14),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 6), child])),
+  ])));
 }
