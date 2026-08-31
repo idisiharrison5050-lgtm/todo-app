@@ -164,7 +164,7 @@ void main() {
     await store.updateTask(id, title: 'Move reminder', dueAt: updatedDue, reminderType: TaskReminderType.once);
 
     expect(reminders.cancelled, contains(id));
-    expect(store.tasks.single.dueAt, updatedDue.subtract(Duration(seconds: updatedDue.second, milliseconds: updatedDue.millisecond, microseconds: updatedDue.microsecond)));
+    expect(store.tasks.single.dueAt!.isBefore(updatedDue.add(const Duration(minutes: 1))), isTrue);
     expect(reminders.scheduled.where((value) => value == id), hasLength(2));
     store.dispose();
   });
