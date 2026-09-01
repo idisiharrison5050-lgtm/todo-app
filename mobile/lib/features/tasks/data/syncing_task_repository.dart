@@ -30,15 +30,30 @@ class SyncingTaskRepository implements TaskRepository {
       }
       final local = await _local.getTasks();
       final remote = await _cloud.pull();
-      final merged = <String, Task>{};
-      for (final task in remote) merged[task.id] = task;
-      for (final task in local) merged[task.id] = task;
-      for (final task in merged.values) await _local.saveTask(task);
-      for (final task in local) await _cloud.push(task);
+      final remoteById = <String, Task>{for (final task in remote) task.id: task};
+      for (final task in local) {
+        final remoteTask = remoteById[task.id];
+        if (remoteTask == null) {
+          final serverTask = await _cloud.push(task);
+          await _local.saveTask(serverTask);
+          continue;
+        }
+        final localTime = task.updatedAt;
+        final remoteTime = remoteTask.updatedAt;
+        if (localTime != null && remoteTime != null && remoteTime.isAfter(localTime)) {
+          await _local.saveTask(remoteTask);
+        } else {
+          final serverTask = await _cloud.push(task);
+          await _local.saveTask(serverTask);
+        }
+      }
+      final localIds = local.map((task) => task.id).toSet();
+      for (final task in remote) {
+        if (!localIds.contains(task.id)) await _local.saveTask(task);
+      }
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: 0, message: 'Synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
-      final statusCode = error.response?.statusCode;
-      if (statusCode != null && statusCode >= 400) {
+      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
         state.value = state.value.copyWith(status: SyncStatus.error, message: 'Cloud sync unavailable');
       } else {
         state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
@@ -59,12 +74,15 @@ class SyncingTaskRepository implements TaskRepository {
 
   @override
   Future<void> saveTask(Task task) async {
-    await _local.saveTask(task);
+    final now = DateTime.now().toUtc();
+    final changedTask = task.updatedAt == null ? task.copyWith(updatedAt: now) : task;
+    await _local.saveTask(changedTask);
     final metadata = _metadata;
-    if (metadata != null) await metadata.clearPendingDelete(task.id);
+    if (metadata != null) await metadata.clearPendingDelete(changedTask.id);
     state.value = state.value.copyWith(status: SyncStatus.syncing, pending: state.value.pending + 1);
     try {
-      await _cloud.push(task);
+      final serverTask = await _cloud.push(changedTask);
+      await _local.saveTask(serverTask);
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: state.value.pending > 0 ? state.value.pending - 1 : 0, message: 'Saved and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
       if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
