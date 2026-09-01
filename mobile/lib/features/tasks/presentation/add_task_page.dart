@@ -60,10 +60,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
     if (date == null || !mounted) return;
     final initial = _dueAt ?? now;
-    final time = await showWheelTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
+    final time = await showWheelTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
     if (time == null || !mounted) return;
     final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    if (value.isBefore(now)) {
+    final currentMinute = DateTime(now.year, now.month, now.day, now.hour, now.minute);
+    final selectedMinute = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (selectedMinute.isBefore(currentMinute)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future time.')));
       return;
     }
@@ -197,10 +202,8 @@ class _WheelTimePicker extends StatefulWidget {
 class _WheelTimePickerState extends State<_WheelTimePicker> {
   late int _hour;
   late int _minute;
-  int _second = 0;
   late final FixedExtentScrollController _hourController;
   late final FixedExtentScrollController _minuteController;
-  late final FixedExtentScrollController _secondController;
 
   @override
   void initState() {
@@ -209,14 +212,12 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
     _minute = widget.initialTime.minute;
     _hourController = FixedExtentScrollController(initialItem: _hour);
     _minuteController = FixedExtentScrollController(initialItem: _minute);
-    _secondController = FixedExtentScrollController(initialItem: 0);
   }
 
   @override
   void dispose() {
     _hourController.dispose();
     _minuteController.dispose();
-    _secondController.dispose();
     super.dispose();
   }
 
@@ -260,8 +261,6 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                   const _WheelSeparator(text: 'h'),
                   Expanded(child: _wheel(controller: _minuteController, count: 60, selected: _minute, onChanged: (value) => setState(() => _minute = value))),
                   const _WheelSeparator(text: 'm'),
-                  Expanded(child: _wheel(controller: _secondController, count: 60, selected: _second, onChanged: (value) => setState(() => _second = value))),
-                  const _WheelSeparator(text: 's'),
                 ]),
               ],
             ),
