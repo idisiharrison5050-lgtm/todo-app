@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/task.dart';
 import 'cloud_task_sync.dart';
+import 'sync_metadata_store.dart';
 import 'sync_status.dart';
 import 'task_repository.dart';
 
@@ -12,9 +13,20 @@ class SyncingTaskRepository implements TaskRepository {
   final CloudTaskSync _cloud;
   final ValueNotifier<SyncState> state = ValueNotifier(const SyncState());
 
+  SyncMetadataStore? get _metadata => _local is SyncMetadataStore ? _local as SyncMetadataStore : null;
+
   Future<void> syncNow() async {
     state.value = state.value.copyWith(status: SyncStatus.syncing);
     try {
+      final metadata = _metadata;
+      if (metadata != null) {
+        final deletedIds = await metadata.getPendingDeletes();
+        for (final id in deletedIds) {
+          await _cloud.delete(id);
+          await metadata.clearPendingDelete(id);
+        }
+      }
+
       final local = await _local.getTasks();
       final remote = await _cloud.pull();
       final merged = <String, Task>{};
@@ -23,8 +35,6 @@ class SyncingTaskRepository implements TaskRepository {
         merged[task.id] = task;
       }
       for (final task in local) {
-        // Local state wins when the same task exists on both sides. This keeps
-        // edits made offline from being discarded during the next pull.
         merged[task.id] = task;
       }
 
@@ -33,10 +43,6 @@ class SyncingTaskRepository implements TaskRepository {
         await _local.saveTask(task);
       }
 
-      // Push every local task. The Laravel endpoint uses client_id with
-      // updateOrCreate, so existing remote tasks are updated rather than
-      // duplicated, while offline-created tasks are uploaded when connection
-      // returns.
       for (final task in local) {
         await _cloud.push(task);
       }
@@ -48,10 +54,7 @@ class SyncingTaskRepository implements TaskRepository {
         lastSyncedAt: DateTime.now(),
       );
     } catch (_) {
-      state.value = state.value.copyWith(
-        status: SyncStatus.offline,
-        message: 'Working offline',
-      );
+      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
     }
   }
 
@@ -64,41 +67,28 @@ class SyncingTaskRepository implements TaskRepository {
   @override
   Future<void> saveTask(Task task) async {
     await _local.saveTask(task);
-    state.value = state.value.copyWith(
-      status: SyncStatus.syncing,
-      pending: state.value.pending + 1,
-    );
+    final metadata = _metadata;
+    if (metadata != null) await metadata.clearPendingDelete(task.id);
+    state.value = state.value.copyWith(status: SyncStatus.syncing, pending: state.value.pending + 1);
     try {
       await _cloud.push(task);
-      state.value = state.value.copyWith(
-        status: SyncStatus.synced,
-        pending: state.value.pending > 0 ? state.value.pending - 1 : 0,
-        message: 'Saved and synced',
-        lastSyncedAt: DateTime.now(),
-      );
+      state.value = state.value.copyWith(status: SyncStatus.synced, pending: state.value.pending > 0 ? state.value.pending - 1 : 0, message: 'Saved and synced', lastSyncedAt: DateTime.now());
     } catch (_) {
-      state.value = state.value.copyWith(
-        status: SyncStatus.offline,
-        message: 'Saved offline',
-      );
+      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
     }
   }
 
   @override
   Future<void> deleteTask(String id) async {
+    final metadata = _metadata;
+    if (metadata != null) await metadata.addPendingDelete(id);
     await _local.deleteTask(id);
     try {
       await _cloud.delete(id);
-      state.value = state.value.copyWith(
-        status: SyncStatus.synced,
-        message: 'Deleted and synced',
-        lastSyncedAt: DateTime.now(),
-      );
+      if (metadata != null) await metadata.clearPendingDelete(id);
+      state.value = state.value.copyWith(status: SyncStatus.synced, message: 'Deleted and synced', lastSyncedAt: DateTime.now());
     } catch (_) {
-      state.value = state.value.copyWith(
-        status: SyncStatus.offline,
-        message: 'Deleted offline',
-      );
+      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
     }
   }
 
