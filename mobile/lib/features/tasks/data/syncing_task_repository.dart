@@ -74,8 +74,9 @@ class SyncingTaskRepository implements TaskRepository {
 
   @override
   Future<void> saveTask(Task task) async {
-    final now = DateTime.now().toUtc();
-    final changedTask = task.updatedAt == null ? task.copyWith(updatedAt: now) : task;
+    // Every user-initiated save is a new local revision. This is what makes
+    // an edit made offline newer than the copy already stored in the cloud.
+    final changedTask = task.copyWith(updatedAt: DateTime.now().toUtc());
     await _local.saveTask(changedTask);
     final metadata = _metadata;
     if (metadata != null) await metadata.clearPendingDelete(changedTask.id);
