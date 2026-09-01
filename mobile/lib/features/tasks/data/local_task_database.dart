@@ -6,12 +6,14 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
+import 'sync_metadata_store.dart';
 import 'task_repository.dart';
 
-class LocalTaskDatabase implements TaskRepository {
+class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   static const _databaseName = 'todo.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
   static const _table = 'tasks';
+  static const _deletedTable = 'pending_deletes';
 
   LocalTaskDatabase({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
 
@@ -43,6 +45,13 @@ class LocalTaskDatabase implements TaskRepository {
         ''');
         await db.execute('CREATE INDEX idx_tasks_due_at ON $_table(due_at)');
         await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)');
+        await db.execute('''
+          CREATE TABLE $_deletedTable (
+            id TEXT PRIMARY KEY,
+            account_key TEXT NOT NULL,
+            deleted_at TEXT NOT NULL
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -51,6 +60,15 @@ class LocalTaskDatabase implements TaskRepository {
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE $_table ADD COLUMN payload TEXT');
+        }
+        if (oldVersion < 4) {
+          await db.execute('''
+            CREATE TABLE $_deletedTable (
+              id TEXT PRIMARY KEY,
+              account_key TEXT NOT NULL,
+              deleted_at TEXT NOT NULL
+            )
+          ''');
         }
       },
     );
@@ -78,7 +96,9 @@ class LocalTaskDatabase implements TaskRepository {
   @override
   Future<void> saveTask(Task task) async {
     final accountKey = await _accountKey();
-    await (await _db).insert(
+    final db = await _db;
+    await db.delete(_deletedTable, where: 'id = ? AND account_key = ?', whereArgs: [task.id, accountKey]);
+    await db.insert(
       _table,
       {..._toRow(task), 'account_key': accountKey},
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -88,11 +108,31 @@ class LocalTaskDatabase implements TaskRepository {
   @override
   Future<void> deleteTask(String id) async {
     final accountKey = await _accountKey();
-    await (await _db).delete(
-      _table,
-      where: 'id = ? AND account_key = ?',
-      whereArgs: [id, accountKey],
+    final db = await _db;
+    await db.delete(_table, where: 'id = ? AND account_key = ?', whereArgs: [id, accountKey]);
+  }
+
+  @override
+  Future<List<String>> getPendingDeletes() async {
+    final accountKey = await _accountKey();
+    final rows = await (await _db).query(_deletedTable, columns: ['id'], where: 'account_key = ?', whereArgs: [accountKey], orderBy: 'deleted_at ASC');
+    return rows.map((row) => row['id']! as String).toList(growable: false);
+  }
+
+  @override
+  Future<void> addPendingDelete(String id) async {
+    final accountKey = await _accountKey();
+    await (await _db).insert(
+      _deletedTable,
+      {'id': id, 'account_key': accountKey, 'deleted_at': DateTime.now().toIso8601String()},
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  @override
+  Future<void> clearPendingDelete(String id) async {
+    final accountKey = await _accountKey();
+    await (await _db).delete(_deletedTable, where: 'id = ? AND account_key = ?', whereArgs: [id, accountKey]);
   }
 
   @override
@@ -121,20 +161,12 @@ class LocalTaskDatabase implements TaskRepository {
     if (payload != null && payload.isNotEmpty) {
       try {
         final decoded = jsonDecode(payload);
-        if (decoded is Map) {
-          return Task.fromJson(Map<String, dynamic>.from(decoded));
-        }
+        if (decoded is Map) return Task.fromJson(Map<String, dynamic>.from(decoded));
       } catch (_) {}
     }
 
-    final reminderType = TaskReminderType.values.firstWhere(
-      (value) => value.name == row['reminder_type'],
-      orElse: () => TaskReminderType.none,
-    );
-    final priority = TaskPriority.values.firstWhere(
-      (value) => value.name == row['priority'],
-      orElse: () => TaskPriority.normal,
-    );
+    final reminderType = TaskReminderType.values.firstWhere((value) => value.name == row['reminder_type'], orElse: () => TaskReminderType.none);
+    final priority = TaskPriority.values.firstWhere((value) => value.name == row['priority'], orElse: () => TaskPriority.normal);
     final interval = row['reminder_interval_minutes'] as int?;
     final dueAtText = row['due_at'] as String?;
 
