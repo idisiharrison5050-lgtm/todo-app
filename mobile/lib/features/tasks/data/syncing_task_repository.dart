@@ -22,16 +22,27 @@ class SyncingTaskRepository implements TaskRepository {
     try {
       final metadata = _metadata;
       if (metadata != null) {
-        final deletedIds = await metadata.getPendingDeletes();
-        for (final id in deletedIds) {
-          await _cloud.delete(id);
-          await metadata.clearPendingDelete(id);
+        final operations = await metadata.getPendingOperations();
+        for (final operation in operations) {
+          if (operation.type == PendingOperationType.delete) {
+            await _cloud.delete(operation.id);
+            await metadata.clearPendingOperation(operation.id);
+            continue;
+          }
+          final tasks = await _local.getTasks();
+          final task = tasks.where((item) => item.id == operation.id).firstOrNull;
+          if (task == null) { await metadata.clearPendingOperation(operation.id); continue; }
+          final serverTask = await _cloud.push(task);
+          await _local.saveTask(serverTask);
+          await metadata.clearPendingOperation(operation.id);
         }
       }
       final local = await _local.getTasks();
       final remote = await _cloud.pull();
       final remoteById = <String, Task>{for (final task in remote) task.id: task};
+      final pendingIds = metadata == null ? <String>{} : (await metadata.getPendingOperations()).map((operation) => operation.id).toSet();
       for (final task in local) {
+        if (pendingIds.contains(task.id)) continue;
         final remoteTask = remoteById[task.id];
         if (remoteTask == null) {
           final serverTask = await _cloud.push(task);
@@ -48,74 +59,47 @@ class SyncingTaskRepository implements TaskRepository {
         }
       }
       final localIds = local.map((task) => task.id).toSet();
-      for (final task in remote) {
-        if (!localIds.contains(task.id)) await _local.saveTask(task);
-      }
+      for (final task in remote) { if (!localIds.contains(task.id)) await _local.saveTask(task); }
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: 0, message: 'Synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
-      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
-        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Cloud sync unavailable');
-      } else {
-        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
-      }
-    } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
-    } finally {
-      _syncRunning = false;
-    }
+      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) state.value = state.value.copyWith(status: SyncStatus.error, message: 'Cloud sync unavailable');
+      else state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
+    } catch (_) { state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline'); }
+    finally { _syncRunning = false; }
   }
 
-  @override
-  Future<List<Task>> getTasks() async {
-    final tasks = await _local.getTasks();
-    unawaited(syncNow());
-    return tasks;
-  }
+  @override Future<List<Task>> getTasks() async { final tasks = await _local.getTasks(); unawaited(syncNow()); return tasks; }
 
-  @override
-  Future<void> saveTask(Task task) async {
-    // Every user-initiated save is a new local revision. This is what makes
-    // an edit made offline newer than the copy already stored in the cloud.
+  @override Future<void> saveTask(Task task) async {
     final changedTask = task.copyWith(updatedAt: DateTime.now().toUtc());
     await _local.saveTask(changedTask);
     final metadata = _metadata;
-    if (metadata != null) await metadata.clearPendingDelete(changedTask.id);
+    if (metadata != null) await metadata.markPendingUpsert(changedTask.id, changedTask.updatedAt!);
     state.value = state.value.copyWith(status: SyncStatus.syncing, pending: state.value.pending + 1);
     try {
       final serverTask = await _cloud.push(changedTask);
       await _local.saveTask(serverTask);
+      if (metadata != null) await metadata.clearPendingOperation(changedTask.id);
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: state.value.pending > 0 ? state.value.pending - 1 : 0, message: 'Saved and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
-      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
-        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Saved locally — will sync later');
-      } else {
-        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
-      }
-    } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
-    }
+      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) state.value = state.value.copyWith(status: SyncStatus.error, message: 'Saved locally — will sync later');
+      else state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
+    } catch (_) { state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline'); }
   }
 
-  @override
-  Future<void> deleteTask(String id) async {
+  @override Future<void> deleteTask(String id) async {
     final metadata = _metadata;
     if (metadata != null) await metadata.addPendingDelete(id);
     await _local.deleteTask(id);
     try {
       await _cloud.delete(id);
-      if (metadata != null) await metadata.clearPendingDelete(id);
+      if (metadata != null) await metadata.clearPendingOperation(id);
       state.value = state.value.copyWith(status: SyncStatus.synced, message: 'Deleted and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
-      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
-        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Deleted locally — will sync later');
-      } else {
-        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
-      }
-    } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
-    }
+      if (error.response?.statusCode != null && error.response!.statusCode! >= 400) state.value = state.value.copyWith(status: SyncStatus.error, message: 'Deleted locally — will sync later');
+      else state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
+    } catch (_) { state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline'); }
   }
 
-  @override
-  Future<void> close() async { state.dispose(); await _local.close(); }
+  @override Future<void> close() async { state.dispose(); await _local.close(); }
 }
