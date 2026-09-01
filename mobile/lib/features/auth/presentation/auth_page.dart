@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../application/auth_store.dart';
+import '../data/auth_api.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key, required this.store, required this.onAuthenticated});
@@ -47,12 +48,14 @@ class _AuthPageState extends State<AuthPage> {
         );
       }
       if (mounted) widget.onAuthenticated();
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'We could not complete that request. Check your details and try again.',
+              error is AuthApiException
+                  ? error.message
+                  : 'We could not complete that request. Please try again.',
             ),
           ),
         );
