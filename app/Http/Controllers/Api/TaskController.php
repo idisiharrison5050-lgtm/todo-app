@@ -24,13 +24,14 @@ class TaskController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'completed' => ['sometimes', 'boolean'],
             'payload' => ['required', 'array'],
+            'client_updated_at' => ['nullable', 'date'],
         ]);
 
-        $clientUpdatedAt = $this->clientUpdatedAt($validated['payload']);
+        $clientUpdatedAt = $validated['client_updated_at'] ?? $this->clientUpdatedAt($validated['payload']);
         $existing = $request->user()->tasks()->where('client_id', $validated['client_id'])->first();
 
-        if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan($clientUpdatedAt)) {
-            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $existing], 409);
+        if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $existing->fresh()], 409);
         }
 
         $task = $request->user()->tasks()->updateOrCreate(
@@ -39,7 +40,7 @@ class TaskController extends Controller
                 'title' => trim($validated['title']),
                 'completed' => $validated['completed'] ?? false,
                 'payload' => $validated['payload'],
-                'client_updated_at' => $clientUpdatedAt ?? now(),
+                'client_updated_at' => $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now(),
             ]
         );
         return response()->json(['task' => $task->fresh()], $existing ? 200 : 201);
@@ -53,13 +54,14 @@ class TaskController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:200'],
             'completed' => ['sometimes', 'boolean'],
             'payload' => ['sometimes', 'required', 'array'],
+            'client_updated_at' => ['nullable', 'date'],
         ]);
-        $clientUpdatedAt = isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null;
-        if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan($clientUpdatedAt)) {
+        $clientUpdatedAt = $validated['client_updated_at'] ?? (isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null);
+        if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
             return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $task->fresh()], 409);
         }
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
-        if ($clientUpdatedAt) $validated['client_updated_at'] = $clientUpdatedAt;
+        if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
         $task->update($validated);
         return response()->json(['task' => $task->fresh()]);
     }
