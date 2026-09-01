@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../domain/task.dart';
@@ -16,7 +17,7 @@ class SyncingTaskRepository implements TaskRepository {
   SyncMetadataStore? get _metadata => _local is SyncMetadataStore ? _local as SyncMetadataStore : null;
 
   Future<void> syncNow() async {
-    state.value = state.value.copyWith(status: SyncStatus.syncing);
+    state.value = state.value.copyWith(status: SyncStatus.syncing, message: 'Syncing…');
     try {
       final metadata = _metadata;
       if (metadata != null) {
@@ -53,8 +54,17 @@ class SyncingTaskRepository implements TaskRepository {
         message: 'Synced',
         lastSyncedAt: DateTime.now(),
       );
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Session expired. Please log in again.');
+      } else if (statusCode != null && statusCode >= 400) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Sync failed (${statusCode}).');
+      } else {
+        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
+      }
     } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Working offline');
+      state.value = state.value.copyWith(status: SyncStatus.error, message: 'Sync failed.');
     }
   }
 
@@ -73,8 +83,17 @@ class SyncingTaskRepository implements TaskRepository {
     try {
       await _cloud.push(task);
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: state.value.pending > 0 ? state.value.pending - 1 : 0, message: 'Saved and synced', lastSyncedAt: DateTime.now());
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Session expired. Please log in again.');
+      } else if (statusCode != null && statusCode >= 400) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Saved locally, but sync failed (${statusCode}).');
+      } else {
+        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
+      }
     } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Saved offline');
+      state.value = state.value.copyWith(status: SyncStatus.error, message: 'Saved locally, but sync failed.');
     }
   }
 
@@ -87,8 +106,17 @@ class SyncingTaskRepository implements TaskRepository {
       await _cloud.delete(id);
       if (metadata != null) await metadata.clearPendingDelete(id);
       state.value = state.value.copyWith(status: SyncStatus.synced, message: 'Deleted and synced', lastSyncedAt: DateTime.now());
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Session expired. Please log in again.');
+      } else if (statusCode != null && statusCode >= 400) {
+        state.value = state.value.copyWith(status: SyncStatus.error, message: 'Deleted locally, but sync failed (${statusCode}).');
+      } else {
+        state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
+      }
     } catch (_) {
-      state.value = state.value.copyWith(status: SyncStatus.offline, message: 'Deleted offline');
+      state.value = state.value.copyWith(status: SyncStatus.error, message: 'Deleted locally, but sync failed.');
     }
   }
 
