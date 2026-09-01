@@ -13,7 +13,7 @@ class TaskController extends Controller
     {
         abort_unless($request->user()->tokenCan('tasks:read'), 403);
 
-        $tasks = $request->user()->tasks()->latest()->paginate(50);
+        $tasks = $request->user()->tasks()->latest('updated_at')->paginate(100);
 
         return response()->json($tasks);
     }
@@ -23,13 +23,20 @@ class TaskController extends Controller
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
 
         $validated = $request->validate([
+            'client_id' => ['required', 'string', 'max:64'],
             'title' => ['required', 'string', 'max:200'],
+            'completed' => ['sometimes', 'boolean'],
+            'payload' => ['required', 'array'],
         ]);
 
-        $task = $request->user()->tasks()->create([
-            'title' => trim($validated['title']),
-            'completed' => false,
-        ]);
+        $task = $request->user()->tasks()->updateOrCreate(
+            ['client_id' => $validated['client_id']],
+            [
+                'title' => trim($validated['title']),
+                'completed' => $validated['completed'] ?? false,
+                'payload' => $validated['payload'],
+            ]
+        );
 
         return response()->json(['task' => $task], 201);
     }
@@ -42,6 +49,7 @@ class TaskController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:200'],
             'completed' => ['sometimes', 'boolean'],
+            'payload' => ['sometimes', 'required', 'array'],
         ]);
 
         if (isset($validated['title'])) {
