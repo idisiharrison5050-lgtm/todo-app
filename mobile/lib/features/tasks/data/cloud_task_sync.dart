@@ -41,9 +41,7 @@ class CloudTaskSync {
       }, options: _options(token));
       return _taskFromResponse(response.data, task);
     } on DioException catch (error) {
-      if (error.response?.statusCode == 409) {
-        return _taskFromResponse(error.response?.data, task);
-      }
+      if (error.response?.statusCode == 409) return _taskFromResponse(error.response?.data, task);
       rethrow;
     }
   }
@@ -58,7 +56,11 @@ class CloudTaskSync {
     for (final item in raw.whereType<Map>()) {
       final data = Map<String, dynamic>.from(item);
       if (data['client_id'] == id && data['id'] != null) {
-        await _dio.delete('/tasks/${data['id']}', options: _options(token));
+        try {
+          await _dio.delete('/tasks/${data['id']}', options: _options(token));
+        } on DioException catch (error) {
+          if (error.response?.statusCode != 404) rethrow;
+        }
         return;
       }
     }
