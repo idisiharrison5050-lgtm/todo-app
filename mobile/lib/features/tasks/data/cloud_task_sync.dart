@@ -4,8 +4,20 @@ import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
 
 class CloudTaskSync {
-  CloudTaskSync({Dio? dio, TokenStorage? storage, String baseUrl = 'http://10.0.2.2:8000/api/v1'})
-      : _dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl, connectTimeout: const Duration(seconds: 8), receiveTimeout: const Duration(seconds: 12))),
+  CloudTaskSync({Dio? dio, TokenStorage? storage, String? baseUrl})
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                baseUrl: baseUrl ??
+                    const String.fromEnvironment(
+                      'API_BASE_URL',
+                      defaultValue: 'http://10.0.2.2:8000/api/v1',
+                    ),
+                connectTimeout: const Duration(seconds: 8),
+                receiveTimeout: const Duration(seconds: 12),
+                headers: const {'Accept': 'application/json'},
+              ),
+            ),
         _storage = storage ?? const TokenStorage();
 
   final Dio _dio;
