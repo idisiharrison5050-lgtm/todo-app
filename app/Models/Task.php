@@ -12,6 +12,7 @@ class Task extends Model
         'title',
         'completed',
         'payload',
+        'client_updated_at',
     ];
 
     protected function casts(): array
@@ -19,6 +20,7 @@ class Task extends Model
         return [
             'completed' => 'boolean',
             'payload' => 'array',
+            'client_updated_at' => 'datetime',
         ];
     }
 
