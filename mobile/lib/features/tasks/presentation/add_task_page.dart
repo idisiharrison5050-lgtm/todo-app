@@ -50,6 +50,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   Future<void> _pickDateTime() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final now = DateTime.now();
     final date = await showDatePicker(context: context, firstDate: DateTime(now.year, now.month, now.day), lastDate: DateTime(now.year + 5), initialDate: _dueAt ?? now);
     if (date == null || !mounted) return;
@@ -57,7 +58,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
-      initialEntryMode: TimePickerEntryMode.input,
+      initialEntryMode: TimePickerEntryMode.dial,
     );
     if (time == null || !mounted) return;
     final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
