@@ -59,7 +59,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       initialDate: _dueAt ?? now,
     );
     if (date == null || !mounted) return;
-    final initial = _dueAt ?? DateTime(date.year, date.month, date.day, 9);
+    final initial = _dueAt ?? now;
     final time = await showWheelTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
     if (time == null || !mounted) return;
     final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
