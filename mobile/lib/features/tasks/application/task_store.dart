@@ -103,11 +103,10 @@ class TaskStore extends ChangeNotifier {
       completing ? 'Task completed' : 'Task marked active',
     );
 
-    // Update the in-memory state first so the checkbox responds immediately.
+    // Reflect the state change immediately so the UI never waits on disk or network I/O.
     _tasks[index] = updated;
     notifyListeners();
 
-    // Persistence and reminder work happen after the UI update.
     try {
       await _repository.saveTask(updated);
       if (updated.isCompleted) {
@@ -116,7 +115,7 @@ class TaskStore extends ChangeNotifier {
         await _syncReminder(updated);
       }
     } catch (_) {
-      // Keep the UI responsive. The sync manager can retry persistence later.
+      // The optimistic UI remains responsive. The sync layer can retry later.
     }
   }
 
@@ -164,15 +163,26 @@ class TaskStore extends ChangeNotifier {
     final due = task.dueAt!;
     DateTime next = due;
     switch (task.repeat) {
-      case TaskRepeat.daily: next = due.add(const Duration(days: 1)); break;
+      case TaskRepeat.daily:
+        next = due.add(const Duration(days: 1));
+        break;
       case TaskRepeat.weekdays:
         next = due.add(const Duration(days: 1));
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) next = next.add(const Duration(days: 1));
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+          next = next.add(const Duration(days: 1));
+        }
         break;
-      case TaskRepeat.weekly: next = due.add(const Duration(days: 7)); break;
-      case TaskRepeat.monthly: next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute); break;
-      case TaskRepeat.custom: next = due.add(Duration(days: task.repeatIntervalDays ?? 1)); break;
-      case TaskRepeat.none: return task.copyWith(isCompleted: true);
+      case TaskRepeat.weekly:
+        next = due.add(const Duration(days: 7));
+        break;
+      case TaskRepeat.monthly:
+        next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute);
+        break;
+      case TaskRepeat.custom:
+        next = due.add(Duration(days: task.repeatIntervalDays ?? 1));
+        break;
+      case TaskRepeat.none:
+        return task.copyWith(isCompleted: true);
     }
     return task.copyWith(dueAt: next, isCompleted: false);
   }
