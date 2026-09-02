@@ -90,15 +90,34 @@ class TaskStore extends ChangeNotifier {
   Future<void> toggleCompleted(String id) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
+
     final current = _tasks[index];
     final completing = !current.isCompleted;
     var updated = current.copyWith(isCompleted: completing);
-    if (completing && current.repeat != TaskRepeat.none && current.dueAt != null) updated = _nextRecurringTask(current);
-    updated = _withHistory(updated, completing ? 'Completed' : 'Reopened', completing ? 'Task completed' : 'Task marked active');
-    await _repository.saveTask(updated);
+    if (completing && current.repeat != TaskRepeat.none && current.dueAt != null) {
+      updated = _nextRecurringTask(current);
+    }
+    updated = _withHistory(
+      updated,
+      completing ? 'Completed' : 'Reopened',
+      completing ? 'Task completed' : 'Task marked active',
+    );
+
+    // Update the in-memory state first so the checkbox responds immediately.
     _tasks[index] = updated;
-    if (updated.isCompleted) await _reminderScheduler.cancel(updated.id); else await _syncReminder(updated);
     notifyListeners();
+
+    // Persistence and reminder work happen after the UI update.
+    try {
+      await _repository.saveTask(updated);
+      if (updated.isCompleted) {
+        await _reminderScheduler.cancel(updated.id);
+      } else {
+        await _syncReminder(updated);
+      }
+    } catch (_) {
+      // Keep the UI responsive. The sync manager can retry persistence later.
+    }
   }
 
   Future<void> addSubtask(String taskId, String title) async {
