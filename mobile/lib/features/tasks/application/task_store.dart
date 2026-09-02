@@ -103,7 +103,6 @@ class TaskStore extends ChangeNotifier {
       completing ? 'Task completed' : 'Task marked active',
     );
 
-    // Reflect the state change immediately so the UI never waits on disk or network I/O.
     _tasks[index] = updated;
     notifyListeners();
 
@@ -115,7 +114,7 @@ class TaskStore extends ChangeNotifier {
         await _syncReminder(updated);
       }
     } catch (_) {
-      // The optimistic UI remains responsive. The sync layer can retry later.
+      // Persistence/scheduling runs in the background so the UI stays responsive.
     }
   }
 
