@@ -14,7 +14,7 @@ class TaskStore extends ChangeNotifier {
       : _repository = repository ?? createTaskRepository(),
         _reminderScheduler = reminderScheduler ?? _createReminderScheduler() {
     if (_repository is SyncingTaskRepository) {
-      _connectivitySyncManager = ConnectivitySyncManager(_repository as SyncingTaskRepository)..start();
+      _connectivitySyncManager = ConnectivitySyncManager(_repository)..start();
     }
   }
 
