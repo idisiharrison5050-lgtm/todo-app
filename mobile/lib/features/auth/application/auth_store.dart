@@ -18,7 +18,18 @@ class AuthStore {
 
   Future<bool> restore() async {
     _token = await _storage.read();
-    return _token != null;
+    if (_token == null || _token!.isEmpty) return false;
+
+    final accountId = await _storage.readAccountId();
+    if (accountId == null || accountId.isEmpty) {
+      try {
+        _user = await _api.me(_token!);
+        await _storage.writeAccountId(_user!.id);
+      } catch (_) {
+        // Keep the session usable offline; the legacy token-scoped local key remains available.
+      }
+    }
+    return true;
   }
 
   Future<AuthUser> login({required String email, required String password, required String deviceName}) async {
