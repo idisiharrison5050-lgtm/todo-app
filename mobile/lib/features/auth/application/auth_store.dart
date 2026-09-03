@@ -49,6 +49,8 @@ class AuthStore {
     final token = _token;
     try {
       if (token != null) await _api.logout(token);
+    } catch (_) {
+      // Local logout must still succeed when the server is unreachable.
     } finally {
       await _storage.clear();
       // Keep the stable account id so this account can reclaim its local tasks after signing in again.
