@@ -73,6 +73,22 @@ class AuthApi {
     }
   }
 
+  Future<AuthUser> me(String token) async {
+    try {
+      final response = await _dio.get(
+        '/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final body = response.data as Map<String, dynamic>;
+      final user = body['user'] is Map<String, dynamic>
+          ? body['user'] as Map<String, dynamic>
+          : body;
+      return AuthUser.fromJson(user, token: token);
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
+  }
+
   AuthUser _parse(Response<dynamic> response) {
     final body = response.data as Map<String, dynamic>;
     final user = body['user'] as Map<String, dynamic>;
