@@ -51,7 +51,7 @@ class AuthStore {
       if (token != null) await _api.logout(token);
     } finally {
       await _storage.clear();
-      await _storage.clearAccountId();
+      // Keep the stable account id so this account can reclaim its local tasks after signing in again.
       _token = null;
       _user = null;
     }
