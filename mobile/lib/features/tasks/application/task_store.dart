@@ -214,7 +214,9 @@ class TaskStore extends ChangeNotifier {
     if (tasks.isEmpty) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
-    for (final task in tasks) await _reminderScheduler.schedule(task);
+    for (final task in tasks) {
+      await _reminderScheduler.schedule(task);
+    }
   }
 
   Future<void> _syncReminder(Task task) async {
