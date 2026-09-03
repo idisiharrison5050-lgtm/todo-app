@@ -6,8 +6,9 @@ import 'add_task_page.dart';
 import 'task_detail_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.store});
+  const HomePage({super.key, required this.store, required this.onLogout});
   final TaskStore store;
+  final Future<void> Function() onLogout;
   @override State<HomePage> createState() => _HomePageState();
 }
 
@@ -23,7 +24,7 @@ class _HomePageState extends State<HomePage> {
           TaskListView(store: widget.store, filter: TaskFilter.upcoming, title: titles[1]),
           TaskListView(store: widget.store, filter: TaskFilter.all, title: titles[2]),
           TaskListView(store: widget.store, filter: TaskFilter.completed, title: titles[3]),
-          const SettingsView(),
+          SettingsView(onLogout: widget.onLogout),
         ]),
       ),
       bottomNavigationBar: NavigationBar(
@@ -380,7 +381,8 @@ class _EmptyTasks extends StatelessWidget {
 }
 
 class SettingsView extends StatelessWidget {
-  const SettingsView({super.key});
+  const SettingsView({super.key, required this.onLogout});
+  final Future<void> Function() onLogout;
   @override Widget build(BuildContext context) => SafeArea(
     child: ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
@@ -396,6 +398,16 @@ class SettingsView extends StatelessWidget {
               Divider(height: 1),
               ListTile(leading: Icon(Icons.storage_outlined), title: Text('Local storage'), subtitle: Text('Tasks persist after closing the app.')),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.logout_rounded),
+            title: const Text('Log out'),
+            subtitle: const Text('Sign out of this account on this device.'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: onLogout,
           ),
         ),
       ],
