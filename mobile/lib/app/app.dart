@@ -45,6 +45,27 @@ class _TodoAppState extends State<TodoApp> {
 
   void _authenticated() => setState(() {});
 
+  Future<void> _logout() async {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You will stay logged out until you sign in again. Reminders already scheduled on this device will continue to work.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Log out')),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    await _authStore.logout();
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     LocalNotificationService.onNotificationTap = null;
@@ -69,7 +90,25 @@ class _TodoAppState extends State<TodoApp> {
           if (snapshot.connectionState != ConnectionState.done) return const _Loading();
           if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
           if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-          return HomePage(store: _taskStore);
+          return Stack(
+            children: [
+              HomePage(store: _taskStore),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 12,
+                child: Material(
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                  elevation: 3,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: 'Log out',
+                    icon: const Icon(Icons.logout_rounded),
+                    onPressed: _logout,
+                  ),
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
