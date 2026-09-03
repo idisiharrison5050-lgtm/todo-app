@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import '../features/auth/application/auth_store.dart';
@@ -44,7 +46,7 @@ class _TodoAppState extends State<TodoApp> {
   }
 
   void _authenticated() {
-    _taskStore.reloadForAccount();
+    unawaited(_taskStore.reloadForAccount());
     setState(() {});
   }
 
