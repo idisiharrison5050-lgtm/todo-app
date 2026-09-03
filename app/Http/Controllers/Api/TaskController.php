@@ -31,7 +31,10 @@ class TaskController extends Controller
         $existing = $request->user()->tasks()->where('client_id', $validated['client_id'])->first();
 
         if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
-            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $existing->fresh()], 409);
+            return response()->json([
+                'message' => 'Server has a newer version of this task.',
+                'task' => $this->canonicalTask($existing->fresh()),
+            ], 409);
         }
 
         $task = $request->user()->tasks()->updateOrCreate(
@@ -43,7 +46,10 @@ class TaskController extends Controller
                 'client_updated_at' => $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now(),
             ]
         );
-        return response()->json(['task' => $task->fresh()], $existing ? 200 : 201);
+
+        return response()->json([
+            'task' => $this->canonicalTask($task->fresh()),
+        ], $existing ? 200 : 201);
     }
 
     public function update(Request $request, Task $task): JsonResponse
@@ -58,12 +64,19 @@ class TaskController extends Controller
         ]);
         $clientUpdatedAt = $validated['client_updated_at'] ?? (isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null);
         if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
-            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $task->fresh()], 409);
+            return response()->json([
+                'message' => 'Server has a newer version of this task.',
+                'task' => $this->canonicalTask($task->fresh()),
+            ], 409);
         }
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
         if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
+        if (isset($validated['payload'])) {
+            $validated['payload']['title'] = $validated['title'] ?? $validated['payload']['title'] ?? $task->title;
+            $validated['payload']['isCompleted'] = $validated['completed'] ?? $validated['payload']['isCompleted'] ?? $task->completed;
+        }
         $task->update($validated);
-        return response()->json(['task' => $task->fresh()]);
+        return response()->json(['task' => $this->canonicalTask($task->fresh())]);
     }
 
     public function destroy(Request $request, Task $task): JsonResponse
@@ -79,5 +92,28 @@ class TaskController extends Controller
         $value = $payload['updatedAt'] ?? null;
         if (!is_string($value) || $value === '') return null;
         try { return Carbon::parse($value); } catch (\Throwable $e) { return null; }
+    }
+
+    private function canonicalTask(Task $task): array
+    {
+        $payload = is_array($task->payload) ? $task->payload : [];
+        $payload['id'] = $task->client_id;
+        $payload['title'] = $task->title;
+        $payload['isCompleted'] = $task->completed;
+        $payload['updatedAt'] = $task->updated_at?->toISOString();
+        if (!isset($payload['createdAt']) && $task->created_at) {
+            $payload['createdAt'] = $task->created_at->toISOString();
+        }
+
+        return [
+            'id' => $task->id,
+            'client_id' => $task->client_id,
+            'title' => $task->title,
+            'completed' => $task->completed,
+            'payload' => $payload,
+            'client_updated_at' => $task->client_updated_at?->toISOString(),
+            'updated_at' => $task->updated_at?->toISOString(),
+            'created_at' => $task->created_at?->toISOString(),
+        ];
     }
 }
