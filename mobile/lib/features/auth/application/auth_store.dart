@@ -29,6 +29,7 @@ class AuthStore {
       throw StateError('Authentication succeeded without an access token.');
     }
     await _storage.write(_token!);
+    await _storage.writeAccountId(user.id);
     return user;
   }
 
@@ -40,6 +41,7 @@ class AuthStore {
       throw StateError('Registration succeeded without an access token.');
     }
     await _storage.write(_token!);
+    await _storage.writeAccountId(user.id);
     return user;
   }
 
@@ -49,6 +51,7 @@ class AuthStore {
       if (token != null) await _api.logout(token);
     } finally {
       await _storage.clear();
+      await _storage.clearAccountId();
       _token = null;
       _user = null;
     }
