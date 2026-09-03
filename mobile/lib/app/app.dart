@@ -43,7 +43,10 @@ class _TodoAppState extends State<TodoApp> {
     }
   }
 
-  void _authenticated() => setState(() {});
+  void _authenticated() {
+    _taskStore.reloadForAccount();
+    setState(() {});
+  }
 
   @override
   void dispose() {
@@ -92,6 +95,7 @@ class _TodoAppState extends State<TodoApp> {
     );
 
     if (confirmed != true || !mounted) return;
+    _taskStore.clearForLogout();
     await _authStore.logout();
     if (mounted) setState(() {});
   }
