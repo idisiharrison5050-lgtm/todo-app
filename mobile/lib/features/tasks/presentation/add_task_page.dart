@@ -251,7 +251,7 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
                       child: Container(
                         height: 64,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(border: Border.symmetric(horizontal: BorderSide(color: Colors.white.withOpacity(.08)))),
+                        decoration: BoxDecoration(border: Border.symmetric(horizontal: BorderSide(color: Colors.white.withValues(alpha: .08)))),
                       ),
                     ),
                   ),
@@ -282,7 +282,6 @@ class _WheelTimePickerState extends State<_WheelTimePicker> {
       childDelegate: ListWheelChildBuilderDelegate(
         childCount: count,
         builder: (context, index) {
-          if (index == null) return null;
           final distance = (index - selected).abs();
           final opacity = distance == 0 ? 1.0 : distance == 1 ? .32 : .12;
           final scale = distance == 0 ? 1.0 : .82;
