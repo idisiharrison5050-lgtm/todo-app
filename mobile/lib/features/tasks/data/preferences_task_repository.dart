@@ -10,7 +10,6 @@ import 'task_repository.dart';
 /// Each authenticated account gets its own storage key so browser data cannot
 /// bleed between accounts on the same device.
 class PreferencesTaskRepository implements TaskRepository {
-  static const _legacyStorageKey = 'todo.tasks.v1';
   static const _anonymousStorageKey = 'todo.tasks.anonymous.v2';
 
   PreferencesTaskRepository({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();

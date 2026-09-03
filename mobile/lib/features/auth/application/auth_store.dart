@@ -26,7 +26,7 @@ class AuthStore {
         _user = await _api.me(_token!);
         await _storage.writeAccountId(_user!.id);
       } catch (_) {
-        // Keep the session usable offline; the legacy token-scoped local key remains available.
+        // Keep the session usable offline; local data remains isolated by the token hash.
       }
     }
     return true;
@@ -64,7 +64,6 @@ class AuthStore {
       // Local logout must still succeed when the server is unreachable.
     } finally {
       await _storage.clear();
-      // Keep the stable account id so this account can reclaim its local tasks after signing in again.
       _token = null;
       _user = null;
     }
