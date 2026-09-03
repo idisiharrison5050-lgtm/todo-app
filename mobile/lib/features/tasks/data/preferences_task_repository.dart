@@ -2,23 +2,35 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
 import 'task_repository.dart';
 
 /// Web-safe local repository used when the app is running in a browser.
-/// The mobile builds use SQLite through [LocalTaskDatabase].
+/// Each authenticated account gets its own storage key so browser data cannot
+/// bleed between accounts on the same device.
 class PreferencesTaskRepository implements TaskRepository {
-  static const _storageKey = 'todo.tasks.v1';
+  static const _legacyStorageKey = 'todo.tasks.v1';
+  static const _anonymousStorageKey = 'todo.tasks.anonymous.v2';
 
+  PreferencesTaskRepository({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
+
+  final TokenStorage _storage;
   SharedPreferences? _preferences;
 
   Future<SharedPreferences> get _prefs async {
     return _preferences ??= await SharedPreferences.getInstance();
   }
 
+  Future<String> _storageKey() async {
+    final accountId = await _storage.readAccountId();
+    if (accountId == null || accountId.isEmpty) return _anonymousStorageKey;
+    return 'todo.tasks.account.$accountId.v2';
+  }
+
   @override
   Future<List<Task>> getTasks() async {
-    final raw = (await _prefs).getString(_storageKey);
+    final raw = (await _prefs).getString(await _storageKey());
     if (raw == null || raw.isEmpty) return const <Task>[];
 
     try {
@@ -44,7 +56,7 @@ class PreferencesTaskRepository implements TaskRepository {
     }
 
     await (await _prefs).setString(
-      _storageKey,
+      await _storageKey(),
       jsonEncode(tasks.map((item) => item.toJson()).toList()),
     );
   }
@@ -53,7 +65,7 @@ class PreferencesTaskRepository implements TaskRepository {
   Future<void> deleteTask(String id) async {
     final tasks = (await getTasks()).where((task) => task.id != id).toList();
     await (await _prefs).setString(
-      _storageKey,
+      await _storageKey(),
       jsonEncode(tasks.map((item) => item.toJson()).toList()),
     );
   }
