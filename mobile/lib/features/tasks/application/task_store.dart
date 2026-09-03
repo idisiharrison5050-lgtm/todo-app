@@ -38,6 +38,18 @@ class TaskStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reloadForAccount() async {
+    _isLoaded = false;
+    _tasks.clear();
+    await load();
+  }
+
+  void clearForLogout() {
+    _tasks.clear();
+    _isLoaded = false;
+    notifyListeners();
+  }
+
   Future<void> addTask({required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal, TaskRepeat repeat = TaskRepeat.none, int? repeatIntervalDays, bool isFavorite = false, String category = '', List<String> tags = const <String>[]}) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
