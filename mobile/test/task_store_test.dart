@@ -111,6 +111,16 @@ void main() {
     store.dispose();
   });
 
+  test('advances weekly recurrence by seven calendar days', () async {
+    final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
+    final due = DateTime(2026, 9, 10, 9, 15);
+    await store.addTask(title: 'Weekly', dueAt: due, repeat: TaskRepeat.weekly);
+    final id = store.tasks.single.id;
+    await store.toggleCompleted(id);
+    expect(store.tasks.single.dueAt, DateTime(2026, 9, 17, 9, 15));
+    store.dispose();
+  });
+
   test('clamps monthly recurrence to the last day of the target month', () async {
     final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
     final januaryThirtyFirst = DateTime(2027, 1, 31, 9, 15);
