@@ -22,6 +22,11 @@ class User extends Authenticatable implements CanResetPasswordContract
         return ['email_verified_at' => 'datetime', 'password' => 'hashed'];
     }
 
+    protected static function newFactory()
+    {
+        return new \App\Database\Factories\UserFactory();
+    }
+
     public function tasks()
     {
         return $this->hasMany(Task::class);
