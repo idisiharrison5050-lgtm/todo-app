@@ -44,7 +44,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate(['token' => ['required', 'string'], 'email' => ['required', 'email', 'max:255'], 'password' => ['required', 'string', 'min:8', 'confirmed']]);
         $status = Password::reset(['email' => strtolower(trim($validated['email'])), 'password' => $validated['password'], 'password_confirmation' => $validated['password'], 'token' => $validated['token']], function (User $user, string $password): void {
-            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            $user->forceFill(['password' => Hash::make($password), 'remember_token' => Str::random(60)])->save();
             $user->tokens()->delete();
             event(new PasswordReset($user));
         });
