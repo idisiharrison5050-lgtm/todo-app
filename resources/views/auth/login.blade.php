@@ -15,7 +15,9 @@
         input:focus { border-color: #60a5fa; }
         button { width: 100%; margin-top: 22px; padding: 13px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
         .error { margin-top: 14px; color: #fca5a5; font-size: 13px; }
+        .status { margin-top: 14px; color: #86efac; font-size: 13px; }
         .switch { margin-top: 22px; text-align: center; font-size: 14px; }
+        .forgot { margin-top: 14px; text-align: right; font-size: 14px; }
         a { color: #93c5fd; }
     </style>
 </head>
@@ -30,8 +32,10 @@
         <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
         @if ($errors->any()) <div class="error">{{ $errors->first() }}</div> @endif
+        @if (session('status')) <div class="status">{{ session('status') }}</div> @endif
         <button type="submit">Sign in</button>
     </form>
+    <div class="forgot"><a href="{{ route('password.request') }}">Forgot your password?</a></div>
     <div class="switch">Don't have an account? <a href="{{ route('register') }}">Create one</a></div>
 </main>
 </body>
