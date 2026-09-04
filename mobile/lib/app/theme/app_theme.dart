@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -39,7 +40,7 @@ class AppTheme {
       outlineVariant: dark ? const Color(0xFF40434C) : const Color(0xFFD9DAE2),
       inverseSurface: dark ? const Color(0xFFE7E8EF) : const Color(0xFF292B33),
       onInverseSurface: dark ? const Color(0xFF292B33) : Colors.white,
-      inversePrimary: dark ? const Color(0xFFC4BEFF) : const Color(0xFFC4BEFF),
+      inversePrimary: const Color(0xFFC4BEFF),
       scrim: Colors.black,
       shadow: Colors.black,
     );
@@ -51,13 +52,15 @@ class AppTheme {
       scaffoldBackgroundColor: scheme.surface,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
-      pageTransitionsTheme: const PageTransitionsTheme(builders: <TargetPlatform, PageTransitionsBuilder>{
-        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
-        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
-      }),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
