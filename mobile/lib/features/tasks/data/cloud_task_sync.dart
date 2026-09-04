@@ -69,10 +69,20 @@ class CloudTaskSync {
     }
   }
 
-  Future<void> delete(String id, {int? syncVersion, String? operationId}) async {
+  Future<void> delete(String id, {int? syncVersion, DateTime? clientUpdatedAt, String? operationId}) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return;
-    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', queryParameters: syncVersion == null ? null : {'sync_version': syncVersion}, options: _options(token, operationId: operationId));
+    await _dio.delete(
+      '/tasks/by-client/${Uri.encodeComponent(id)}',
+      queryParameters: {
+        if (syncVersion != null) 'sync_version': syncVersion,
+        if (clientUpdatedAt != null) 'client_updated_at': clientUpdatedAt.toIso8601String(),
+      }.isEmpty ? null : {
+        if (syncVersion != null) 'sync_version': syncVersion,
+        if (clientUpdatedAt != null) 'client_updated_at': clientUpdatedAt.toIso8601String(),
+      },
+      options: _options(token, operationId: operationId),
+    );
   }
 
   Task _taskFromResponse(dynamic response, Task fallback) {
