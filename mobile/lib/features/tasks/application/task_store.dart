@@ -172,30 +172,41 @@ class TaskStore extends ChangeNotifier {
 
   Task _nextRecurringTask(Task task) {
     final due = task.dueAt!;
-    DateTime next = due;
+    DateTime next;
     switch (task.repeat) {
       case TaskRepeat.daily:
-        next = due.add(const Duration(days: 1));
+        next = _addCalendarDays(due, 1);
         break;
       case TaskRepeat.weekdays:
-        next = due.add(const Duration(days: 1));
+        next = _addCalendarDays(due, 1);
         while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
-          next = next.add(const Duration(days: 1));
+          next = _addCalendarDays(next, 1);
         }
         break;
       case TaskRepeat.weekly:
-        next = due.add(const Duration(days: 7));
+        next = _addCalendarDays(due, 7);
         break;
       case TaskRepeat.monthly:
-        next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute);
+        next = _addCalendarMonthClamped(due, 1);
         break;
       case TaskRepeat.custom:
-        next = due.add(Duration(days: task.repeatIntervalDays ?? 1));
+        next = _addCalendarDays(due, task.repeatIntervalDays ?? 1);
         break;
       case TaskRepeat.none:
         return task.copyWith(isCompleted: true);
     }
     return task.copyWith(dueAt: next, isCompleted: false);
+  }
+
+  DateTime _addCalendarDays(DateTime value, int days) => DateTime(value.year, value.month, value.day + days, value.hour, value.minute, value.second);
+
+  DateTime _addCalendarMonthClamped(DateTime value, int months) {
+    final targetMonth = value.month + months;
+    final targetYear = value.year + ((targetMonth - 1) ~/ 12);
+    final month = ((targetMonth - 1) % 12) + 1;
+    final lastDay = DateTime(targetYear, month + 1, 0).day;
+    final day = value.day > lastDay ? lastDay : value.day;
+    return DateTime(targetYear, month, day, value.hour, value.minute, value.second);
   }
 
   Future<void> deleteTask(String id) async {
