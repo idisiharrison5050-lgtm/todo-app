@@ -32,7 +32,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, sqlite3, pdo_sqlite
+          extensions: mbstring, sqlite3, pdo_sqlite, xml
           coverage: none
       - uses: ramsey/composer-install@v3
       - run: cp .env.example .env
@@ -40,4 +40,7 @@ jobs:
       - run: touch database/database.sqlite
       - run: php artisan key:generate --force
       - run: php artisan migrate --force
-      - run: php artisan test
+      - name: Install PHPUnit
+        run: wget -q https://phar.phpunit.de/phpunit-12.phar -O phpunit.phar
+      - name: Run Laravel test suite
+        run: php phpunit.phar --configuration phpunit.xml
