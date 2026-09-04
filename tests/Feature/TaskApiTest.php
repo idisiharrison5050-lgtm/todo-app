@@ -110,6 +110,22 @@ class TaskApiTest extends TestCase
         $this->assertDatabaseMissing('deleted_tasks', ['user_id' => $user->id, 'client_id' => 'delete-cas-task']);
     }
 
+    public function test_timestamp_only_delete_cannot_remove_a_newer_server_task(): void
+    {
+        $user = User::factory()->create();
+        $serverTime = Carbon::parse('2026-09-04T11:00:00Z');
+        $task = Task::create(['user_id' => $user->id, 'client_id' => 'timestamp-delete-task', 'title' => 'Keep newer task', 'completed' => false, 'payload' => ['id' => 'timestamp-delete-task', 'title' => 'Keep newer task'], 'client_updated_at' => $serverTime, 'sync_version' => 1]);
+        Sanctum::actingAs($user, ['tasks:write']);
+
+        $this->deleteJson('/api/v1/tasks/by-client/timestamp-delete-task?client_updated_at='.$serverTime->copy()->subMinute()->toIso8601String())
+            ->assertStatus(409)
+            ->assertJsonPath('task.client_id', 'timestamp-delete-task')
+            ->assertJsonPath('task.title', 'Keep newer task');
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'sync_version' => 1, 'title' => 'Keep newer task']);
+        $this->assertDatabaseMissing('deleted_tasks', ['user_id' => $user->id, 'client_id' => 'timestamp-delete-task']);
+    }
+
     public function test_deleting_by_client_id_creates_a_tombstone_and_blocks_stale_recreation(): void
     {
         $user = User::factory()->create(); $createdAt = Carbon::parse('2026-09-04T07:00:00Z');
