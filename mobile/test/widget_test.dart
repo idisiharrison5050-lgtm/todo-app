@@ -88,8 +88,25 @@ void main() {
     await tester.tap(find.text('Buy groceries'));
     await tester.pumpAndSettle();
     expect(find.byType(TaskDetailPage), findsOneWidget);
+
+    final detailList = find.byType(ListView);
+    await tester.scrollUntilVisible(
+      find.text('Checklist'),
+      500,
+      scrollable: detailList,
+    );
     expect(find.text('Checklist'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Complete task'),
+      500,
+      scrollable: detailList,
+    );
+    await tester.tap(find.text('Complete task'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mark active'), findsOneWidget);
+    expect(store.tasks.singleWhere((task) => task.title == 'Buy groceries').isCompleted, isTrue);
     store.dispose();
   });
 
