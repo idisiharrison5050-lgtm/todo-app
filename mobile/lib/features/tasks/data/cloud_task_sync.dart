@@ -28,7 +28,17 @@ class CloudTaskSync {
     }).where((task) => task.title.trim().isNotEmpty).toList();
   }
 
-  Future<Task> push(Task task) async {
+  Future<Set<String>> pullDeletedIds() async {
+    final token = await _storage.read();
+    if (token == null || token.isEmpty) return const <String>{};
+    final response = await _dio.get('/tasks/deleted', options: _options(token));
+    final body = response.data as Map<String, dynamic>;
+    final raw = body['data'];
+    if (raw is! List) return const <String>{};
+    return raw.whereType<Map>().map((item) => item['client_id']).whereType<String>().toSet();
+  }
+
+  Future<Task?> push(Task task) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return task;
     try {
@@ -41,7 +51,11 @@ class CloudTaskSync {
       }, options: _options(token));
       return _taskFromResponse(response.data, task);
     } on DioException catch (error) {
-      if (error.response?.statusCode == 409) return _taskFromResponse(error.response?.data, task);
+      if (error.response?.statusCode == 409) {
+        final body = error.response?.data;
+        if (body is Map && body['deleted'] == true) return null;
+        return _taskFromResponse(body, task);
+      }
       rethrow;
     }
   }
