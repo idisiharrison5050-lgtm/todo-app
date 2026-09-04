@@ -38,7 +38,7 @@ class SyncingTaskRepository implements TaskRepository {
               version = await _local.getPendingDeleteVersion(operation.id);
               operationId ??= await _local.getPendingDeleteOperationId(operation.id);
             }
-            await _cloud.delete(operation.id, syncVersion: version, operationId: operationId);
+            await _cloud.delete(operation.id, syncVersion: version, clientUpdatedAt: operation.updatedAt, operationId: operationId);
             await metadata.clearPendingOperationIfMatches(operation.id, operationId);
             continue;
           }
@@ -65,11 +65,13 @@ class SyncingTaskRepository implements TaskRepository {
       for (final id in pendingDeletes) {
         int? version;
         String? operationId;
+        DateTime? deletedAt;
         if (_local is LocalTaskDatabase) {
           version = await _local.getPendingDeleteVersion(id);
           operationId = await _local.getPendingDeleteOperationId(id);
+          deletedAt = await _local.getPendingDeleteAt(id);
         }
-        await _cloud.delete(id, syncVersion: version, operationId: operationId);
+        await _cloud.delete(id, syncVersion: version, clientUpdatedAt: deletedAt, operationId: operationId);
         await metadata?.clearPendingDeleteIfMatches(id, operationId);
       }
 
@@ -215,7 +217,8 @@ class SyncingTaskRepository implements TaskRepository {
     if (metadata != null) await metadata.addPendingDelete(id, operationId: operationId);
     await _local.deleteTask(id);
     try {
-      await _cloud.delete(id, syncVersion: task?.syncVersion, operationId: operationId);
+      final deletedAt = DateTime.now().toUtc();
+      await _cloud.delete(id, syncVersion: task?.syncVersion, clientUpdatedAt: deletedAt, operationId: operationId);
       await metadata?.clearPendingDeleteIfMatches(id, operationId);
       state.value = state.value.copyWith(status: SyncStatus.synced, message: 'Deleted and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
