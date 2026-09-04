@@ -22,7 +22,7 @@ class SyncingTaskRepository implements TaskRepository {
 
   SyncMetadataStore? get _metadata {
     final local = _local;
-    if (local is SyncMetadataStore) return local;
+    if (local is SyncMetadataStore) return local as SyncMetadataStore;
     return null;
   }
 
