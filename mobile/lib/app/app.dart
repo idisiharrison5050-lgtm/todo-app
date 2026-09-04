@@ -17,14 +17,17 @@ class TodoApp extends StatefulWidget {
 class _TodoAppState extends State<TodoApp> {
   late final TaskStore _taskStore;
   late final AuthStore _authStore;
+  late final LocalNotificationService _notifications;
   late Future<void> _loadFuture;
   final _navigatorKey = GlobalKey<NavigatorState>();
+  String? _pendingNotificationTaskId;
 
   @override
   void initState() {
     super.initState();
     _taskStore = TaskStore();
     _authStore = AuthStore();
+    _notifications = LocalNotificationService();
     LocalNotificationService.onNotificationTap = _openTask;
     _loadFuture = _initialize();
   }
@@ -32,15 +35,29 @@ class _TodoAppState extends State<TodoApp> {
   Future<void> _initialize() async {
     await _authStore.restore();
     await _taskStore.load();
+    _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
+    if (_authStore.isAuthenticated && _pendingNotificationTaskId != null) _openPendingNotification();
+  }
+
+  void _openPendingNotification() {
+    final id = _pendingNotificationTaskId;
+    if (id == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingNotificationTaskId = null;
+      _openTask(id);
+    });
   }
 
   void _openTask(String id) {
     final context = _navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null) {
+      _pendingNotificationTaskId = id;
+      return;
+    }
     for (final task in _taskStore.tasks) {
       if (task.id == id) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: _taskStore, task: task)));
-        break;
+        return;
       }
     }
   }
@@ -48,6 +65,7 @@ class _TodoAppState extends State<TodoApp> {
   void _authenticated() {
     unawaited(_taskStore.reloadForAccount());
     setState(() {});
+    if (_pendingNotificationTaskId != null) _openPendingNotification();
   }
 
   @override
@@ -58,32 +76,29 @@ class _TodoAppState extends State<TodoApp> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      title: 'Todo',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      themeAnimationDuration: const Duration(milliseconds: 350),
-      themeAnimationCurve: Curves.easeOutCubic,
-      home: FutureBuilder<void>(
-        future: _loadFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) return const _Loading();
-          if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
-          if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-          return HomePage(store: _taskStore, onLogout: _logout);
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: _navigatorKey,
+    title: 'Todo',
+    debugShowCheckedModeBanner: false,
+    theme: AppTheme.light,
+    darkTheme: AppTheme.dark,
+    themeMode: ThemeMode.system,
+    themeAnimationDuration: const Duration(milliseconds: 350),
+    themeAnimationCurve: Curves.easeOutCubic,
+    home: FutureBuilder<void>(
+      future: _loadFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) return const _Loading();
+        if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
+        if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
+        return HomePage(store: _taskStore, onLogout: _logout);
+      },
+    ),
+  );
 
   Future<void> _logout() async {
     final context = _navigatorKey.currentContext;
     if (context == null) return;
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -95,7 +110,6 @@ class _TodoAppState extends State<TodoApp> {
         ],
       ),
     );
-
     if (confirmed != true || !mounted) return;
     _taskStore.clearForLogout();
     await _authStore.logout();
@@ -107,8 +121,7 @@ class _Loading extends StatelessWidget {
   const _Loading();
   @override Widget build(BuildContext context) => Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
     Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
-    const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12),
-    const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+    const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12), const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
   ])));
 }
 
