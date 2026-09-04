@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../reminders/application/reminder_scheduler.dart';
 import '../data/connectivity_sync_manager.dart';
@@ -45,6 +47,7 @@ class TaskStore extends ChangeNotifier {
   }
 
   void clearForLogout() {
+    unawaited(_reminderScheduler.cancelAll());
     _tasks.clear();
     _isLoaded = false;
     notifyListeners();
@@ -56,7 +59,7 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
     final now = DateTime.now();
-    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
+    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: _currentTimeZone(), priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
     await _repository.saveTask(task);
     _tasks.add(task);
     await _syncReminder(task);
@@ -82,7 +85,8 @@ class TaskStore extends ChangeNotifier {
     if (isFavorite != null && current.isFavorite != isFavorite) changes.add(isFavorite ? 'Added to favorites' : 'Removed from favorites');
     if (category != null && current.category != category.trim()) changes.add('Category changed');
     if (tags != null && current.tags.join('|') != tags.join('|')) changes.add('Tags changed');
-    final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
+    final reminderTimeZone = reminderType == TaskReminderType.none ? null : (current.reminderTimeZone ?? _currentTimeZone());
+    final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
     await _syncReminder(updated);
@@ -109,11 +113,7 @@ class TaskStore extends ChangeNotifier {
     if (completing && current.repeat != TaskRepeat.none && current.dueAt != null) {
       updated = _nextRecurringTask(current);
     }
-    updated = _withHistory(
-      updated,
-      completing ? 'Completed' : 'Reopened',
-      completing ? 'Task completed' : 'Task marked active',
-    );
+    updated = _withHistory(updated, completing ? 'Completed' : 'Reopened', completing ? 'Task completed' : 'Task marked active');
 
     _tasks[index] = updated;
     notifyListeners();
@@ -179,9 +179,7 @@ class TaskStore extends ChangeNotifier {
         break;
       case TaskRepeat.weekdays:
         next = due.add(const Duration(days: 1));
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
-          next = next.add(const Duration(days: 1));
-        }
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) next = next.add(const Duration(days: 1));
         break;
       case TaskRepeat.weekly:
         next = due.add(const Duration(days: 7));
@@ -226,9 +224,7 @@ class TaskStore extends ChangeNotifier {
     if (tasks.isEmpty) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
-    for (final task in tasks) {
-      await _reminderScheduler.schedule(task);
-    }
+    for (final task in tasks) await _reminderScheduler.schedule(task);
   }
 
   Future<void> _syncReminder(Task task) async {
@@ -237,6 +233,11 @@ class TaskStore extends ChangeNotifier {
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
     await _reminderScheduler.schedule(task);
+  }
+
+  String _currentTimeZone() {
+    tz_data.initializeTimeZones();
+    return tz.local.name;
   }
 
   DateTime? _normalizeDueAt(DateTime? value) => value == null ? null : DateTime(value.year, value.month, value.day, value.hour, value.minute);
