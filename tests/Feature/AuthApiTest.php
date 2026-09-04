@@ -52,4 +52,19 @@ class AuthApiTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
         $this->assertTrue(password_verify('new-password', $user->fresh()->password));
     }
+
+    public function test_reset_password_requires_matching_password_confirmation(): void
+    {
+        $user = User::factory()->create(['password' => 'old-password']);
+        $token = Password::createToken($user);
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'different-password',
+        ])->assertStatus(422);
+
+        $this->assertTrue(password_verify('old-password', $user->fresh()->password));
+    }
 }
