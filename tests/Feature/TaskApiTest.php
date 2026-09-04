@@ -95,7 +95,7 @@ class TaskApiTest extends TestCase
         ]);
         $task->created_at = $serverTime->copy()->subHour();
         $task->updated_at = $serverTime;
-        $task->save();
+        $task->saveQuietly();
         Sanctum::actingAs($user, ['tasks:write']);
 
         $this->postJson('/api/v1/tasks', [
