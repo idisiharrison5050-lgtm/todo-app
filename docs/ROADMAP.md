@@ -14,24 +14,27 @@
 - [x] API v1 foundation
 - [x] Authentication/error validation foundation
 - [x] Login rate limiting baseline
-- [ ] CI/security checks
-- [ ] Health/observability baseline
+- [x] CI with Flutter analyze/test and Laravel test suite
+- [x] Health endpoint
+- [ ] Production observability/monitoring
 
 ## Stage 2 — Identity
 - [x] Registration
 - [x] Login
 - [x] Logout/revocation
-- [ ] Password reset
-- [ ] Secure mobile credential storage
+- [x] Password reset API and notification flow
+- [x] Secure mobile credential storage
 - [x] Basic authorization isolation tests
+- [ ] Account deletion flow
+- [ ] Email verification decision/implementation
 
 ## Stage 3 — Tasks
 - [x] Task model
 - [x] Task CRUD API
 - [x] User ownership enforcement
-- [ ] Today/upcoming queries
-- [ ] Filters/search
-- [ ] Backend task test suite
+- [x] Today/upcoming views
+- [x] Basic search/filter UI
+- [x] Backend task API tests
 
 ## Stage 4 — Reminders
 - [x] Reminder model
@@ -41,53 +44,61 @@
 - [x] Snooze configuration storage
 - [x] Reminder CRUD API
 - [x] Reminder authorization tests
-- [x] Recurrence unit tests
-- [ ] Mobile notification scheduling
-- [ ] Notification lifecycle handling
-- [ ] DST/timezone integration tests
+- [x] Recurrence/date unit tests
+- [x] Mobile notification scheduling implementation
+- [x] Notification action/background handling implementation
+- [ ] Cold-start notification navigation verification on physical devices
+- [ ] DST/timezone integration matrix
 
-## Stage 5 — Flutter
-- [ ] iOS project
-- [ ] Android project
+## Stage 5 — Flutter Foundation
+- [x] iOS project
+- [x] Android project
 - [x] Mobile architecture documented
-- [ ] Secure storage implementation
-- [ ] Local database implementation
-- [ ] API client implementation
-- [ ] Local notification implementation
+- [x] Secure storage implementation
+- [x] Local database implementation
+- [x] API client implementation
+- [x] Local notification implementation
 - [x] Platform notification requirements documented
+- [ ] Production-grade release configuration/signing
 
 ## Stage 6 — Premium MVP UX
-- [ ] Design system
-- [ ] Onboarding
-- [ ] Today screen
-- [ ] Add task flow
-- [ ] Reminder flow
-- [ ] Upcoming view
-- [ ] Search/filter
-- [ ] Settings
+- [x] Core design/theme foundation
+- [ ] Final onboarding/permission UX review
+- [x] Today screen
+- [x] Add/edit task flow
+- [x] Reminder flow
+- [x] Upcoming/calendar views
+- [x] Search/filter
+- [ ] Final settings/account UX review
 - [ ] Accessibility pass
+- [ ] Final responsive/screen-size review
 
 ## Stage 7 — Offline + Sync
-- [ ] Local cache
-- [ ] Mutation queue
-- [ ] Idempotency
-- [ ] Conflict handling
-- [ ] Deletion tombstones/versioning
-- [ ] Cross-device tests
+- [x] Local task cache/database
+- [x] Pending mutation queue
+- [x] Idempotency keys
+- [x] Server sync versions
+- [x] Conflict handling for stale writes
+- [x] Deletion tombstones/versioning
+- [x] Account-scoped local sync metadata
+- [x] Retry-safe mutation flow
+- [ ] Two-device conflict integration tests
+- [ ] Physical offline/reconnect verification
 
 ## Stage 8 — Hardening
 - [ ] OWASP-style API review
-- [ ] Dependency audit
+- [ ] Dependency vulnerability audit
 - [ ] Mobile security review
 - [ ] Privacy review
 - [ ] Notification privacy review
 - [ ] Logging review
+- [x] Idempotency concurrency race protection
 
 ## Stage 9 — QA
-- [ ] Unit tests
-- [ ] API tests
-- [ ] Mobile tests
-- [ ] Integration tests
+- [x] Backend unit/API tests for implemented critical paths
+- [x] Flutter unit/domain tests for implemented critical paths
+- [ ] Broader widget/component tests
+- [ ] Integration tests for critical user journeys
 - [ ] Physical iOS testing
 - [ ] Physical Android testing
 - [ ] Offline testing
@@ -99,7 +110,7 @@
 - [ ] HTTPS
 - [ ] Secrets management
 - [ ] Backups
-- [ ] Monitoring
+- [ ] Monitoring/error tracking
 - [ ] iOS internal/TestFlight path
 - [ ] Android internal testing
 - [ ] Real-world reminder reliability test
@@ -111,6 +122,9 @@
 - [ ] Store assets
 - [ ] Release signing
 - [ ] Rollback plan
-- [ ] Final security review
+- [ ] Final security/privacy review
 
-**Current position:** Backend reminder domain and API are implemented. Mobile architecture and platform notification requirements are documented. The next implementation step is generating the Flutter project and building its secure API/storage/notification foundations.
+## Current position
+The backend authentication, task, reminder, synchronization, deletion-tombstone, and idempotency foundations are implemented and covered by a green CI pipeline. The Flutter client has secure token storage, local persistence, API synchronization, offline mutation handling, timezone-aware reminder scheduling, snooze actions, and core task/reminder screens.
+
+The next work is **hardening and verification**, not adding random features: finish sync conflict edge cases, complete timezone/DST and notification lifecycle tests, perform the security/dependency/privacy review, then validate the complete app on a physical Android device before private beta.
