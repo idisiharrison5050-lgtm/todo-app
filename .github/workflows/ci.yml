@@ -36,7 +36,7 @@ jobs:
           coverage: none
       - uses: ramsey/composer-install@v3
       - name: Install test support
-        run: composer require --dev mockery/mockery:^1.6 --no-interaction --no-progress
+        run: composer require --dev mockery/mockery:^1.6 fakerphp/faker:^1.24 --no-interaction --no-progress
       - run: cp .env.example .env
       - run: mkdir -p bootstrap/cache
       - run: touch database/database.sqlite
