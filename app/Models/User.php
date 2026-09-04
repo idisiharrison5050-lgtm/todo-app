@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,7 +23,7 @@ class User extends Authenticatable implements CanResetPasswordContract
         return ['email_verified_at' => 'datetime', 'password' => 'hashed'];
     }
 
-    protected static function newFactory()
+    protected static function newFactory(): Factory
     {
         return new \App\Database\Factories\UserFactory();
     }
