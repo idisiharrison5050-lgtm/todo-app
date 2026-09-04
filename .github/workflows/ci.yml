@@ -42,6 +42,8 @@ jobs:
       - run: php artisan migrate --force
       - name: Install Laravel test dependencies
         run: composer require --dev mockery/mockery:^1.6 fakerphp/faker:^1.24 --no-interaction --no-progress
+      - name: Audit Composer dependencies
+        run: composer audit --no-interaction
       - name: Install PHPUnit
         run: wget -q https://phar.phpunit.de/phpunit-12.phar -O phpunit.phar
       - name: Run Laravel test suite
