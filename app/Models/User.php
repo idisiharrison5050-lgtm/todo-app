@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -12,23 +13,12 @@ class User extends Authenticatable implements CanResetPasswordContract
 {
     use HasApiTokens, Notifiable, CanResetPassword;
 
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
-
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $fillable = ['name', 'email', 'password'];
+    protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return ['email_verified_at' => 'datetime', 'password' => 'hashed'];
     }
 
     public function tasks()
@@ -39,5 +29,10 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function reminders()
     {
         return $this->hasMany(Reminder::class);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
