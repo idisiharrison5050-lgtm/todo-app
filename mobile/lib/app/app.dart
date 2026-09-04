@@ -85,6 +85,10 @@ class _TodoAppState extends State<TodoApp> {
     themeMode: ThemeMode.system,
     themeAnimationDuration: const Duration(milliseconds: 350),
     themeAnimationCurve: Curves.easeOutCubic,
+    builder: (context, child) => ScrollConfiguration(
+      behavior: const _PremiumScrollBehavior(),
+      child: child ?? const SizedBox.shrink(),
+    ),
     home: FutureBuilder<void>(
       future: _loadFuture,
       builder: (context, snapshot) {
@@ -117,12 +121,47 @@ class _TodoAppState extends State<TodoApp> {
   }
 }
 
-class _Loading extends StatelessWidget {
+class _PremiumScrollBehavior extends MaterialScrollBehavior {
+  const _PremiumScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
+}
+
+class _Loading extends StatefulWidget {
   const _Loading();
-  @override Widget build(BuildContext context) => Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-    Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
-    const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12), const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
-  ])));
+  @override State<_Loading> createState() => _LoadingState();
+}
+
+class _LoadingState extends State<_Loading> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ScaleTransition(
+          scale: Tween<double>(begin: .94, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)),
+            child: const Icon(Icons.check_rounded, color: Colors.white, size: 34),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+      ],),
+    ),
+  );
 }
 
 class _Error extends StatelessWidget {
