@@ -20,16 +20,10 @@ class _CalendarPageState extends State<CalendarPage> {
   bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
   List<Task> _tasksFor(DateTime day) {
-    return widget.store.tasks.where((task) => task.dueAt != null && _sameDay(task.dueAt!, day)).toList()
-      ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
+    return widget.store.tasks.where((task) => task.dueAt != null && _sameDay(task.dueAt!, day)).toList()..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
   }
 
-  void _select(DateTime date) {
-    setState(() {
-      _selected = date;
-      _month = DateTime(date.year, date.month);
-    });
-  }
+  void _select(DateTime date) => setState(() { _selected = date; _month = DateTime(date.year, date.month); });
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +32,8 @@ class _CalendarPageState extends State<CalendarPage> {
     final today = DateTime.now();
     final first = DateTime(_month.year, _month.month, 1);
     final days = DateTime(_month.year, _month.month + 1, 0).day;
-    final cells = <DateTime?>[
-      ...List<DateTime?>.filled(first.weekday - 1, null),
-      ...List.generate(days, (i) => DateTime(_month.year, _month.month, i + 1)),
-    ];
+    final cells = <DateTime?>[...List<DateTime?>.filled(first.weekday - 1, null), ...List.generate(days, (i) => DateTime(_month.year, _month.month, i + 1))];
     while (cells.length % 7 != 0) cells.add(null);
-
     final selectedTasks = _tasksFor(_selected);
     final monthName = MaterialLocalizations.of(context).formatMonthYear(_month);
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -52,35 +42,22 @@ class _CalendarPageState extends State<CalendarPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 110),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Planner', style: theme.textTheme.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.w900, letterSpacing: .4)),
-                  const SizedBox(height: 4),
-                  Text('Calendar', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.3)),
-                  const SizedBox(height: 3),
-                  Text('See what is coming up.', style: theme.textTheme.bodyMedium),
-                ]),
-              ),
-              IconButton.filledTonal(
-                tooltip: 'Add task',
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store))),
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
-          ),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Planner', style: theme.textTheme.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.w900, letterSpacing: .4)),
+              const SizedBox(height: 4),
+              Text('Calendar', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.3)),
+              const SizedBox(height: 3),
+              Text('See what is coming up.', style: theme.textTheme.bodyMedium),
+            ])),
+            IconButton.filledTonal(tooltip: 'Add task', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store))), icon: const Icon(Icons.add_rounded)),
+          ]),
           const SizedBox(height: 18),
           _WeekStrip(selected: _selected, today: today, tasksFor: _tasksFor, onSelect: _select),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 13, 12, 15),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: scheme.outlineVariant.withValues(alpha: .42)),
-            ),
+            decoration: BoxDecoration(color: scheme.surface, borderRadius: BorderRadius.circular(26), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .42))),
             child: Column(children: [
               Row(children: [
                 IconButton(onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)), icon: const Icon(Icons.chevron_left_rounded)),
@@ -107,24 +84,11 @@ class _CalendarPageState extends State<CalendarPage> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       margin: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: selected ? scheme.primary : null,
-                        borderRadius: BorderRadius.circular(15),
-                        border: isToday && !selected ? Border.all(color: scheme.primary.withValues(alpha: .55), width: 1.4) : null,
-                      ),
+                      decoration: BoxDecoration(color: selected ? scheme.primary : null, borderRadius: BorderRadius.circular(15), border: isToday && !selected ? Border.all(color: scheme.primary.withValues(alpha: .55), width: 1.4) : null),
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Text('${date.day}', style: TextStyle(fontSize: 13, fontWeight: selected || isToday ? FontWeight.w900 : FontWeight.w600, color: selected ? scheme.onPrimary : null)),
                         const SizedBox(height: 4),
-                        if (tasks.isNotEmpty)
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            for (final task in tasks.take(3))
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                                child: Container(width: 4, height: 4, decoration: BoxDecoration(color: selected ? scheme.onPrimary : task.priority == TaskPriority.high ? scheme.error : scheme.primary, shape: BoxShape.circle)),
-                              ),
-                          ])
-                        else
-                          const SizedBox(height: 4),
+                        if (tasks.isNotEmpty) Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (final task in tasks.take(3)) Padding(padding: const EdgeInsets.symmetric(horizontal: 1.5), child: Container(width: 4, height: 4, decoration: BoxDecoration(color: selected ? scheme.onPrimary : task.priority == TaskPriority.high ? scheme.error : scheme.primary, shape: BoxShape.circle)))]) else const SizedBox(height: 4),
                       ]),
                     ),
                   );
@@ -134,20 +98,13 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
           const SizedBox(height: 25),
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Agenda', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.4)),
-              const SizedBox(height: 3),
-              Text(MaterialLocalizations.of(context).formatFullDate(_selected), style: theme.textTheme.bodySmall),
-            ])),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Agenda', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.4)), const SizedBox(height: 3), Text(MaterialLocalizations.of(context).formatFullDate(_selected), style: theme.textTheme.bodySmall)])),
             Text('${selectedTasks.length}', style: theme.textTheme.titleMedium?.copyWith(color: scheme.primary, fontWeight: FontWeight.w900)),
             const SizedBox(width: 4),
             Text(selectedTasks.length == 1 ? 'task' : 'tasks', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 11),
-          if (selectedTasks.isEmpty)
-            _EmptyAgenda(onAdd: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store))))
-          else
-            ...selectedTasks.map((task) => _CalendarTask(task: task, store: widget.store)),
+          if (selectedTasks.isEmpty) _EmptyAgenda(onAdd: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store)))) else ...selectedTasks.map((task) => _CalendarTask(task: task, store: widget.store)),
         ],
       ),
     );
@@ -165,41 +122,23 @@ class _WeekStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final monday = selected.subtract(Duration(days: selected.weekday - 1));
-    return SizedBox(
-      height: 78,
-      child: Row(
-        children: List.generate(7, (index) {
-          final date = DateTime(monday.year, monday.month, monday.day + index);
-          final isSelected = _same(date, selected);
-          final isToday = _same(date, today);
-          final count = tasksFor(date).length;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: index == 6 ? 0 : 6),
-              child: InkWell(
-                onTap: () => onSelect(date),
-                borderRadius: BorderRadius.circular(19),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  decoration: BoxDecoration(color: isSelected ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: .5), borderRadius: BorderRadius.circular(19), border: isToday && !isSelected ? Border.all(color: scheme.primary.withValues(alpha: .5)) : null),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(_shortDay(date.weekday), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: isSelected ? scheme.onPrimary.withValues(alpha: .75) : scheme.onSurfaceVariant)),
-                    const SizedBox(height: 5),
-                    Text('${date.day}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isSelected ? scheme.onPrimary : null)),
-                    const SizedBox(height: 4),
-                    Container(width: count > 0 ? 5 : 3, height: 3, decoration: BoxDecoration(color: isSelected ? scheme.onPrimary : count > 0 ? scheme.primary : scheme.outlineVariant, borderRadius: BorderRadius.circular(5))),
-                  ]),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
+    return SizedBox(height: 78, child: Row(children: List.generate(7, (index) {
+      final date = DateTime(monday.year, monday.month, monday.day + index);
+      final isSelected = _same(date, selected);
+      final isToday = _same(date, today);
+      final count = tasksFor(date).length;
+      return Expanded(child: Padding(padding: EdgeInsets.only(right: index == 6 ? 0 : 6), child: InkWell(
+        onTap: () => onSelect(date), borderRadius: BorderRadius.circular(19),
+        child: AnimatedContainer(duration: const Duration(milliseconds: 180), decoration: BoxDecoration(color: isSelected ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: .5), borderRadius: BorderRadius.circular(19), border: isToday && !isSelected ? Border.all(color: scheme.primary.withValues(alpha: .5)) : null), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(const ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][index], style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: isSelected ? scheme.onPrimary.withValues(alpha: .75) : scheme.onSurfaceVariant)),
+          const SizedBox(height: 5), Text('${date.day}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isSelected ? scheme.onPrimary : null)), const SizedBox(height: 4),
+          Container(width: count > 0 ? 5 : 3, height: 3, decoration: BoxDecoration(color: isSelected ? scheme.onPrimary : count > 0 ? scheme.primary : scheme.outlineVariant, borderRadius: BorderRadius.circular(5))),
+        ])),
+      )));
+    })));
   }
 
   static bool _same(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
-  static String _shortDay(int value) => const ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][value - 1];
 }
 
 class _EmptyAgenda extends StatelessWidget {
@@ -209,20 +148,9 @@ class _EmptyAgenda extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
-      decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: .45), borderRadius: BorderRadius.circular(22)),
-      child: Column(children: [
-        Icon(Icons.event_available_rounded, size: 34, color: scheme.primary),
-        const SizedBox(height: 10),
-        Text('Nothing planned', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4),
-        const Text('This day is open. Add a task when you are ready.', textAlign: TextAlign.center),
-        const SizedBox(height: 14),
-        OutlinedButton.icon(onPressed: onAdd, icon: const Icon(Icons.add_rounded), label: const Text('Add task')),
-      ]),
-    );
+    return Container(width: double.infinity, padding: const EdgeInsets.fromLTRB(22, 28, 22, 24), decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: .45), borderRadius: BorderRadius.circular(22)), child: Column(children: [
+      Icon(Icons.event_available_rounded, size: 34, color: scheme.primary), const SizedBox(height: 10), Text('Nothing planned', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)), const SizedBox(height: 4), const Text('This day is open. Add a task when you are ready.', textAlign: TextAlign.center), const SizedBox(height: 14), OutlinedButton.icon(onPressed: onAdd, icon: const Icon(Icons.add_rounded), label: const Text('Add task')),
+    ]));
   }
 }
 
@@ -235,34 +163,13 @@ class _CalendarTask extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = task.priority == TaskPriority.high ? scheme.error : scheme.primary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Material(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(21),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(21),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: store, task: task))),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(21), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .42))),
-            child: Row(children: [
-              Container(width: 4, height: 48, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5))),
-              const SizedBox(width: 11),
-              InkWell(onTap: () => store.toggleCompleted(task.id), borderRadius: BorderRadius.circular(20), child: Container(width: 25, height: 25, decoration: BoxDecoration(shape: BoxShape.circle, color: task.isCompleted ? color : Colors.transparent, border: Border.all(color: task.isCompleted ? color : scheme.outline, width: 2)), child: task.isCompleted ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null)),
-              const SizedBox(width: 11),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, decoration: task.isCompleted ? TextDecoration.lineThrough : null)),
-                const SizedBox(height: 5),
-                Row(children: [Icon(Icons.schedule_rounded, size: 14, color: color), const SizedBox(width: 4), Text(TimeOfDay.fromDateTime(task.dueAt!).format(context), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)), if (task.category.isNotEmpty) ...[const SizedBox(width: 8), Flexible(child: Text(task.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: themeBody(context)))]]),
-              ])),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-            ]),
-          ),
-        ),
-      ),
-    );
+    return Padding(padding: const EdgeInsets.only(bottom: 9), child: Material(color: scheme.surface, borderRadius: BorderRadius.circular(21), child: InkWell(borderRadius: BorderRadius.circular(21), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: store, task: task))), child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(21), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .42))), child: Row(children: [
+        Container(width: 4, height: 48, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5))), const SizedBox(width: 11),
+        InkWell(onTap: () => store.toggleCompleted(task.id), borderRadius: BorderRadius.circular(20), child: Container(width: 25, height: 25, decoration: BoxDecoration(shape: BoxShape.circle, color: task.isCompleted ? color : Colors.transparent, border: Border.all(color: task.isCompleted ? color : scheme.outline, width: 2)), child: task.isCompleted ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null)), const SizedBox(width: 11),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, decoration: task.isCompleted ? TextDecoration.lineThrough : null)), const SizedBox(height: 5), Row(children: [Icon(Icons.schedule_rounded, size: 14, color: color), const SizedBox(width: 4), Text(TimeOfDay.fromDateTime(task.dueAt!).format(context), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)), if (task.category.isNotEmpty) ...[const SizedBox(width: 8), Flexible(child: Text(task.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: themeBody(context)))]])), const SizedBox(width: 4), Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+      ]),
+    ))));
   }
 
   TextStyle? themeBody(BuildContext context) => Theme.of(context).textTheme.bodySmall;
