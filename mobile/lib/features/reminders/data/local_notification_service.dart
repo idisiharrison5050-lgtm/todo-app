@@ -121,11 +121,11 @@ class LocalNotificationService {
     return (androidGranted ?? false) || (iosGranted ?? false);
   }
 
-  Future<void> scheduleOneTime({required int id, required String title, required String body, required DateTime scheduledAt, String? payload, bool includeSnoozeActions = true}) async {
+  Future<void> scheduleOneTime({required int id, required String title, required String body, required DateTime scheduledAt, String? timeZone, String? payload, bool includeSnoozeActions = true}) async {
     await initialize();
     if (kIsWeb) return;
-    final minute = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day, scheduledAt.hour, scheduledAt.minute);
-    final scheduled = tz.TZDateTime.from(minute, tz.local);
+    final location = _safeLocation(timeZone);
+    final scheduled = _wallClockInZone(scheduledAt, location);
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
     final details = NotificationDetails(
       android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: includeSnoozeActions ? <AndroidNotificationAction>[const AndroidNotificationAction(snooze5Action, '5 min'), const AndroidNotificationAction(snooze10Action, '10 min'), const AndroidNotificationAction(snooze30Action, '30 min')] : const <AndroidNotificationAction>[]),
@@ -149,4 +149,15 @@ class LocalNotificationService {
     await initialize();
     await _plugin.cancelAll();
   }
+
+  tz.Location _safeLocation(String? name) {
+    if (name == null || name.trim().isEmpty) return tz.local;
+    try {
+      return tz.getLocation(name.trim());
+    } catch (_) {
+      return tz.local;
+    }
+  }
+
+  tz.TZDateTime _wallClockInZone(DateTime value, tz.Location location) => tz.TZDateTime(location, value.year, value.month, value.day, value.hour, value.minute, value.second);
 }
