@@ -98,6 +98,13 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   }
 
   @override
+  Future<void> clearPendingOperationIfMatches(String id, String? operationId) async {
+    final accountKey = await _accountKey();
+    if (accountKey == null || accountKey.isEmpty || operationId == null || operationId.isEmpty) return;
+    await (await _database()).delete(_operationsTable, where: 'id = ? AND account_key = ? AND operation_id = ?', whereArgs: <Object>[id, accountKey, operationId]);
+  }
+
+  @override
   Future<void> addPendingDelete(String id, {String? operationId}) async {
     final accountKey = await _accountKey();
     if (accountKey == null || accountKey.isEmpty) return;
@@ -134,6 +141,13 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
     final accountKey = await _accountKey();
     if (accountKey == null || accountKey.isEmpty) return;
     await (await _database()).delete(_deletedTable, where: 'id = ? AND account_key = ?', whereArgs: <Object>[id, accountKey]);
+  }
+
+  @override
+  Future<void> clearPendingDeleteIfMatches(String id, String? operationId) async {
+    final accountKey = await _accountKey();
+    if (accountKey == null || accountKey.isEmpty || operationId == null || operationId.isEmpty) return;
+    await (await _database()).delete(_deletedTable, where: 'id = ? AND account_key = ? AND operation_id = ?', whereArgs: <Object>[id, accountKey, operationId]);
   }
 
   @override
