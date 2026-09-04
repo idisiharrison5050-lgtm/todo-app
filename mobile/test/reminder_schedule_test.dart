@@ -22,4 +22,21 @@ void main() {
     final task = Task(id: '3', title: 'Invalid', dueAt: DateTime(2026, 9, 5), reminderType: TaskReminderType.interval, reminderInterval: Duration.zero);
     expect(buildReminderSchedule(task), isNull);
   });
+
+  test('persisted timezone keeps the reminder wall clock in the original zone', () {
+    final now = DateTime.utc(2026, 9, 4, 16, 0);
+    final task = Task(id: '4', title: 'Timezone', dueAt: DateTime(2026, 9, 4, 13, 0), reminderType: TaskReminderType.once, reminderTimeZone: 'America/New_York');
+    final schedule = buildReminderSchedule(task, now: now);
+    expect(schedule, isNotNull);
+    expect(schedule!.timeZone, 'America/New_York');
+    expect(schedule.fireAt.toUtc(), DateTime.utc(2026, 9, 4, 17, 0));
+  });
+
+  test('reminder timezone survives task serialization for cloud sync', () {
+    final original = Task(id: '5', title: 'Synced reminder', dueAt: DateTime(2026, 9, 4, 13, 0), reminderType: TaskReminderType.once, reminderTimeZone: 'Europe/London');
+    final restored = Task.fromJson(original.toJson());
+    expect(restored.reminderTimeZone, 'Europe/London');
+    expect(restored.dueAt, original.dueAt);
+    expect(restored.reminderType, TaskReminderType.once);
+  });
 }
