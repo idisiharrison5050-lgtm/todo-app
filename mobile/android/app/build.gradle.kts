@@ -17,8 +17,8 @@ val hasReleaseSigning = listOf(
     "keyPassword",
     "storeFile",
     "storePassword"
-).all { !keystoreProperties[it].toString().isNullOrBlank() } &&
-    file(keystoreProperties["storeFile"].toString()).exists()
+).all { keystoreProperties[it]?.toString()?.isNotBlank() == true } &&
+    file(keystoreProperties["storeFile"]?.toString() ?: "").exists()
 
 android {
     namespace = "com.example.todo_mobile"
