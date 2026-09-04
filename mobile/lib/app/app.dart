@@ -6,7 +6,7 @@ import '../features/auth/application/auth_store.dart';
 import '../features/auth/presentation/auth_page.dart';
 import '../features/reminders/data/local_notification_service.dart';
 import '../features/tasks/application/task_store.dart';
-import '../features/tasks/presentation/home_page.dart';
+import '../features/tasks/presentation/premium_workspace_page.dart';
 import '../features/tasks/presentation/task_detail_page.dart';
 
 class TodoApp extends StatefulWidget {
@@ -91,7 +91,7 @@ class _TodoAppState extends State<TodoApp> {
         if (snapshot.connectionState != ConnectionState.done) return const _Loading();
         if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
         if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-        return HomePage(store: _taskStore, onLogout: _logout);
+        return PremiumWorkspacePage(store: _taskStore, onLogout: _logout);
       },
     ),
   );
