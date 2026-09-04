@@ -26,7 +26,10 @@ class CloudTaskSync {
         tasks.addAll(raw.whereType<Map>().map((item) {
           final data = Map<String, dynamic>.from(item);
           final payload = data['payload'];
-          if (payload is Map) return Task.fromJson(Map<String, dynamic>.from(payload));
+          if (payload is Map) {
+            final decoded = Task.fromJson(Map<String, dynamic>.from(payload));
+            return decoded.copyWith(syncVersion: data['sync_version'] as int? ?? decoded.syncVersion);
+          }
           return Task(id: data['client_id'] as String, title: data['title'] as String? ?? '', isCompleted: data['completed'] as bool? ?? false, updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? ''), syncVersion: data['sync_version'] as int?);
         }).where((task) => task.title.trim().isNotEmpty));
       }
@@ -68,10 +71,10 @@ class CloudTaskSync {
     }
   }
 
-  Future<void> delete(String id) async {
+  Future<void> delete(String id, {int? syncVersion}) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return;
-    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', options: _options(token));
+    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', queryParameters: syncVersion == null ? null : {'sync_version': syncVersion}, options: _options(token));
   }
 
   Task _taskFromResponse(dynamic response, Task fallback) {
@@ -79,7 +82,10 @@ class CloudTaskSync {
       final data = response['task'];
       if (data is Map) {
         final payload = data['payload'];
-        if (payload is Map) return Task.fromJson(Map<String, dynamic>.from(payload));
+        if (payload is Map) {
+          final decoded = Task.fromJson(Map<String, dynamic>.from(payload));
+          return decoded.copyWith(syncVersion: data['sync_version'] as int? ?? decoded.syncVersion);
+        }
         return Task(id: data['client_id'] as String? ?? fallback.id, title: data['title'] as String? ?? fallback.title, isCompleted: data['completed'] as bool? ?? fallback.isCompleted, updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? data['client_updated_at'] as String? ?? '') ?? fallback.updatedAt, syncVersion: data['sync_version'] as int? ?? fallback.syncVersion);
       }
     }
