@@ -27,14 +27,21 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
   }
 
   tz_data.initializeTimeZones();
-  final timeZone = task.reminderTimeZone?.trim().isNotEmpty == true ? task.reminderTimeZone!.trim() : tz.local.name;
+  final persistedTimeZone = task.reminderTimeZone?.trim();
+  final hasPersistedTimeZone = persistedTimeZone?.isNotEmpty == true;
+  final timeZone = hasPersistedTimeZone ? persistedTimeZone! : tz.local.name;
   final location = _safeLocation(timeZone);
   final current = now ?? DateTime.now();
-  final currentInZone = tz.TZDateTime.from(current, location);
+  final currentInZone = hasPersistedTimeZone
+      ? tz.TZDateTime.from(current, location)
+      : tz.TZDateTime(location, current.year, current.month, current.day, current.hour, current.minute, current.second);
   final due = task.dueAt!;
+
   if (task.reminderType == TaskReminderType.once) {
     final fireAt = _wallClockInZone(due, location);
-    if (!fireAt.isAfter(currentInZone)) return null;
+    if (!fireAt.isAfter(currentInZone)) {
+      return null;
+    }
     return ReminderSchedule(
       taskId: task.id,
       title: task.title,
@@ -44,7 +51,9 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
   }
 
   final interval = task.reminderInterval;
-  if (interval == null || interval <= Duration.zero) return null;
+  if (interval == null || interval <= Duration.zero) {
+    return null;
+  }
 
   var fireAt = _wallClockInZone(due, location);
   while (!fireAt.isAfter(currentInZone)) {
