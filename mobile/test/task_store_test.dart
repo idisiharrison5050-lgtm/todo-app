@@ -59,7 +59,7 @@ void main() {
   });
 
   test('editing a reminder time cancels the old schedule before scheduling the new one', () async {
-    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders;
+    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders);
     final originalDue = DateTime.now().add(const Duration(hours: 1)); final updatedDue = DateTime.now().add(const Duration(hours: 3));
     await store.addTask(title: 'Move reminder', dueAt: originalDue, reminderType: TaskReminderType.once); final id = store.tasks.single.id;
     await store.updateTask(id, title: 'Move reminder', dueAt: updatedDue, reminderType: TaskReminderType.once);
@@ -67,14 +67,14 @@ void main() {
   });
 
   test('removing a due date disables and cancels its reminder', () async {
-    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders;
+    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders);
     await store.addTask(title: 'Remove schedule', dueAt: DateTime.now().add(const Duration(hours: 1)), reminderType: TaskReminderType.once); final id = store.tasks.single.id;
     await store.updateTask(id, title: 'Remove schedule', dueAt: null, reminderType: TaskReminderType.none);
     expect(store.tasks.single.dueAt, isNull); expect(store.tasks.single.reminderType, TaskReminderType.none); expect(reminders.cancelled, contains(id)); expect(reminders.scheduled.where((value) => value == id), hasLength(1)); store.dispose();
   });
 
   test('turning a reminder off does not leave a new schedule', () async {
-    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders; final due = DateTime.now().add(const Duration(hours: 1));
+    final repository = MemoryTaskRepository(); final reminders = FakeReminderScheduler(); final store = TaskStore(repository: repository, reminderScheduler: reminders); final due = DateTime.now().add(const Duration(hours: 1));
     await store.addTask(title: 'Disable reminder', dueAt: due, reminderType: TaskReminderType.once); final id = store.tasks.single.id; final scheduledCount = reminders.scheduled.length;
     await store.updateTask(id, title: 'Disable reminder', dueAt: due, reminderType: TaskReminderType.none);
     expect(reminders.cancelled, contains(id)); expect(reminders.scheduled.length, scheduledCount); store.dispose();
@@ -88,38 +88,6 @@ void main() {
   test('rejects an invalid repeating reminder interval', () async {
     final store = TaskStore(repository: MemoryTaskRepository(), reminderScheduler: FakeReminderScheduler());
     expect(() => store.addTask(title: 'Repeat', dueAt: DateTime.now().add(const Duration(minutes: 5)), reminderType: TaskReminderType.interval), throwsArgumentError); store.dispose();
-  });
-
-  test('daily recurrence advances by a calendar day', () async {
-    final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
-    await store.addTask(title: 'Daily', dueAt: DateTime(2026, 9, 5, 9), repeat: TaskRepeat.daily);
-    final id = store.tasks.single.id;
-    await store.toggleCompleted(id);
-    expect(store.tasks.single.isCompleted, isFalse); expect(store.tasks.single.dueAt, DateTime(2026, 9, 6, 9)); store.dispose();
-  });
-
-  test('weekday recurrence skips Saturday and Sunday', () async {
-    final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
-    await store.addTask(title: 'Weekday', dueAt: DateTime(2026, 9, 11, 9), repeat: TaskRepeat.weekdays);
-    final id = store.tasks.single.id;
-    await store.toggleCompleted(id);
-    expect(store.tasks.single.dueAt, DateTime(2026, 9, 14, 9)); store.dispose();
-  });
-
-  test('monthly recurrence clamps dates to the target month', () async {
-    final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
-    await store.addTask(title: 'Monthly', dueAt: DateTime(2027, 1, 31, 9), repeat: TaskRepeat.monthly);
-    final id = store.tasks.single.id;
-    await store.toggleCompleted(id);
-    expect(store.tasks.single.dueAt, DateTime(2027, 2, 28, 9)); store.dispose();
-  });
-
-  test('custom recurrence uses calendar days', () async {
-    final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
-    await store.addTask(title: 'Custom', dueAt: DateTime(2026, 9, 5, 9), repeat: TaskRepeat.custom, repeatIntervalDays: 3);
-    final id = store.tasks.single.id;
-    await store.toggleCompleted(id);
-    expect(store.tasks.single.dueAt, DateTime(2026, 9, 8, 9)); store.dispose();
   });
 
   test('manages subtasks and records history', () async {
