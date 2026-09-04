@@ -40,6 +40,19 @@ class TaskApiTest extends TestCase
         $this->assertDatabaseHas('tasks', ['id' => $task->id, 'title' => 'Private task']);
     }
 
+    public function test_user_cannot_delete_another_users_task_by_client_id(): void
+    {
+        $owner = User::factory()->create(); $attacker = User::factory()->create();
+        $task = Task::create(['user_id' => $owner->id, 'client_id' => 'shared-client-id', 'title' => 'Owner task', 'completed' => false, 'payload' => ['id' => 'shared-client-id', 'title' => 'Owner task'], 'sync_version' => 3]);
+        Sanctum::actingAs($attacker, ['tasks:write']);
+
+        $this->deleteJson('/api/v1/tasks/by-client/shared-client-id')->assertOk();
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'user_id' => $owner->id, 'client_id' => 'shared-client-id', 'title' => 'Owner task']);
+        $this->assertDatabaseMissing('deleted_tasks', ['user_id' => $owner->id, 'client_id' => 'shared-client-id']);
+        $this->assertDatabaseHas('deleted_tasks', ['user_id' => $attacker->id, 'client_id' => 'shared-client-id']);
+    }
+
     public function test_stale_update_returns_the_canonical_server_task(): void
     {
         $user = User::factory()->create(); $serverTime = Carbon::parse('2026-09-04T08:00:00Z');
@@ -79,6 +92,22 @@ class TaskApiTest extends TestCase
         $this->patchJson('/api/v1/tasks/'.$task->id, ['title' => 'First update', 'payload' => ['id' => 'update-cas-task', 'title' => 'First update'], 'client_updated_at' => $time->copy()->addMinute()->toIso8601String(), 'sync_version' => 2])->assertOk()->assertJsonPath('task.sync_version', 3);
 
         $this->patchJson('/api/v1/tasks/'.$task->id, ['title' => 'Stale update', 'payload' => ['id' => 'update-cas-task', 'title' => 'Stale update'], 'client_updated_at' => $time->copy()->addMinutes(2)->toIso8601String(), 'sync_version' => 2])->assertStatus(409)->assertJsonPath('task.sync_version', 3)->assertJsonPath('task.title', 'First update');
+    }
+
+    public function test_stale_delete_returns_the_canonical_server_task_and_preserves_it(): void
+    {
+        $user = User::factory()->create();
+        $task = Task::create(['user_id' => $user->id, 'client_id' => 'delete-cas-task', 'title' => 'Keep me', 'completed' => false, 'payload' => ['id' => 'delete-cas-task', 'title' => 'Keep me'], 'sync_version' => 5]);
+        Sanctum::actingAs($user, ['tasks:write']);
+
+        $this->deleteJson('/api/v1/tasks/by-client/delete-cas-task?sync_version=4')
+            ->assertStatus(409)
+            ->assertJsonPath('task.client_id', 'delete-cas-task')
+            ->assertJsonPath('task.sync_version', 5)
+            ->assertJsonPath('task.title', 'Keep me');
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'sync_version' => 5, 'title' => 'Keep me']);
+        $this->assertDatabaseMissing('deleted_tasks', ['user_id' => $user->id, 'client_id' => 'delete-cas-task']);
     }
 
     public function test_deleting_by_client_id_creates_a_tombstone_and_blocks_stale_recreation(): void
