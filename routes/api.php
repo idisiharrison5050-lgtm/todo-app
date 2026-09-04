@@ -16,6 +16,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/tasks', [TaskController::class, 'index']);
         Route::get('/tasks/deleted', [TaskController::class, 'deleted']);
         Route::post('/tasks', [TaskController::class, 'store']);
+        Route::delete('/tasks/by-client/{clientId}', [TaskController::class, 'destroyByClientId']);
         Route::patch('/tasks/{task}', [TaskController::class, 'update']);
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
 
