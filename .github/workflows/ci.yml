@@ -24,6 +24,21 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  flutter_android_release:
+    name: Flutter Android release build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --release
+
   laravel:
     name: Laravel tests
     runs-on: ubuntu-latest
