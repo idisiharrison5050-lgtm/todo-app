@@ -4,9 +4,7 @@ import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
 
 class CloudTaskSync {
-  CloudTaskSync({Dio? dio, TokenStorage? storage, String? baseUrl})
-      : _dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8000/api/v1'), connectTimeout: const Duration(seconds: 8), receiveTimeout: const Duration(seconds: 12), headers: const {'Accept': 'application/json'})),
-        _storage = storage ?? const TokenStorage();
+  CloudTaskSync({Dio? dio, TokenStorage? storage, String? baseUrl}) : _dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8000/api/v1'), connectTimeout: const Duration(seconds: 8), receiveTimeout: const Duration(seconds: 12), headers: const {'Accept': 'application/json'})), _storage = storage ?? const TokenStorage();
 
   final Dio _dio;
   final TokenStorage _storage;
@@ -55,11 +53,11 @@ class CloudTaskSync {
     return ids;
   }
 
-  Future<Task?> push(Task task) async {
+  Future<Task?> push(Task task, {String? operationId}) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return task;
     try {
-      final response = await _dio.post('/tasks', data: {'client_id': task.id, 'title': task.title, 'completed': task.isCompleted, 'payload': task.toJson(), 'client_updated_at': task.updatedAt?.toIso8601String(), 'sync_version': task.syncVersion}, options: _options(token));
+      final response = await _dio.post('/tasks', data: {'client_id': task.id, 'title': task.title, 'completed': task.isCompleted, 'payload': task.toJson(), 'client_updated_at': task.updatedAt?.toIso8601String(), 'sync_version': task.syncVersion}, options: _options(token, operationId: operationId));
       return _taskFromResponse(response.data, task);
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
@@ -71,10 +69,10 @@ class CloudTaskSync {
     }
   }
 
-  Future<void> delete(String id, {int? syncVersion}) async {
+  Future<void> delete(String id, {int? syncVersion, String? operationId}) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return;
-    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', queryParameters: syncVersion == null ? null : {'sync_version': syncVersion}, options: _options(token));
+    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', queryParameters: syncVersion == null ? null : {'sync_version': syncVersion}, options: _options(token, operationId: operationId));
   }
 
   Task _taskFromResponse(dynamic response, Task fallback) {
@@ -92,5 +90,5 @@ class CloudTaskSync {
     return fallback;
   }
 
-  Options _options(String token) => Options(headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+  Options _options(String token, {String? operationId}) => Options(headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json', if (operationId != null && operationId.isNotEmpty) 'Idempotency-Key': operationId});
 }
