@@ -46,6 +46,7 @@ class LocalReminderScheduler implements ReminderScheduler {
       title: task.title,
       body: 'You have a scheduled task.',
       scheduledAt: schedule.fireAt,
+      timeZone: schedule.timeZone,
       payload: task.id,
     );
 
@@ -60,6 +61,7 @@ class LocalReminderScheduler implements ReminderScheduler {
         title: task.title,
         body: 'You have a scheduled task.',
         scheduledAt: next,
+        timeZone: schedule.timeZone,
         payload: task.id,
       );
     }
