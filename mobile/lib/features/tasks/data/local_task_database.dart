@@ -1,162 +1,215 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
-import 'package:path/path.dart' as path;
+
+import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
-import '../../auth/data/token_storage.dart';
+
 import '../domain/task.dart';
 import 'sync_metadata_store.dart';
 import 'task_repository.dart';
 
 class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
-  static const _databaseName = 'todo.db';
-  static const _databaseVersion = 7;
-  static const _table = 'tasks';
-  static const _deletedTable = 'pending_deletes';
-  static const _operationsTable = 'pending_operations';
-  LocalTaskDatabase({TokenStorage? storage}) : _storage = storage ?? const TokenStorage();
-  final TokenStorage _storage;
+  LocalTaskDatabase({required this.accountKey});
+
+  final String accountKey;
   Database? _database;
-  String? _preparedAccountKey;
+  static const String _databaseName = 'todo_mobile.db';
+  static const String _tasksTable = 'tasks';
+  static const String _operationsTable = 'pending_operations';
+  static const String _deletedTable = 'pending_deletes';
+
+  Future<String> _accountKey() async => accountKey;
 
   Future<Database> get _db async {
     if (_database != null) return _database!;
-    final databasesPath = await getDatabasesPath();
-    final databasePath = path.join(databasesPath, _databaseName);
-    _database = await openDatabase(databasePath, version: _databaseVersion, onCreate: (db, version) async {
-      await db.execute('CREATE TABLE $_table (id TEXT PRIMARY KEY, account_key TEXT NOT NULL DEFAULT \'\', title TEXT NOT NULL, notes TEXT NOT NULL DEFAULT \'\', due_at TEXT, reminder_type TEXT NOT NULL, reminder_interval_minutes INTEGER, priority TEXT NOT NULL, is_completed INTEGER NOT NULL DEFAULT 0, payload TEXT, updated_at TEXT)');
-      await db.execute('CREATE INDEX idx_tasks_due_at ON $_table(due_at)');
-      await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)');
-      await db.execute('CREATE TABLE $_deletedTable (id TEXT PRIMARY KEY, account_key TEXT NOT NULL, deleted_at TEXT NOT NULL, sync_version INTEGER)');
-      await db.execute('CREATE TABLE $_operationsTable (id TEXT PRIMARY KEY, account_key TEXT NOT NULL, operation TEXT NOT NULL, updated_at TEXT NOT NULL)');
-      await db.execute('CREATE INDEX idx_pending_operations_account ON $_operationsTable(account_key)');
+    final path = p.join(await getDatabasesPath(), _databaseName);
+    _database = await openDatabase(path, version: 7, onCreate: (db, version) async {
+      await db.execute('''
+        CREATE TABLE $_tasksTable (
+          id TEXT PRIMARY KEY,
+          account_key TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE $_operationsTable (
+          id TEXT PRIMARY KEY,
+          account_key TEXT NOT NULL,
+          type TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE $_deletedTable (
+          id TEXT PRIMARY KEY,
+          account_key TEXT NOT NULL,
+          deleted_at INTEGER NOT NULL,
+          sync_version INTEGER
+        )
+      ''');
     }, onUpgrade: (db, oldVersion, newVersion) async {
-      if (oldVersion < 2) { await db.execute("ALTER TABLE $_table ADD COLUMN account_key TEXT NOT NULL DEFAULT ''"); await db.execute('CREATE INDEX idx_tasks_account_key ON $_table(account_key)'); }
-      if (oldVersion < 3) await db.execute('ALTER TABLE $_table ADD COLUMN payload TEXT');
-      if (oldVersion < 4) await db.execute('CREATE TABLE $_deletedTable (id TEXT PRIMARY KEY, account_key TEXT NOT NULL, deleted_at TEXT NOT NULL)');
-      if (oldVersion < 5) await db.execute('ALTER TABLE $_table ADD COLUMN updated_at TEXT');
-      if (oldVersion < 6) { await db.execute('CREATE TABLE $_operationsTable (id TEXT PRIMARY KEY, account_key TEXT NOT NULL, operation TEXT NOT NULL, updated_at TEXT NOT NULL)'); await db.execute('CREATE INDEX idx_pending_operations_account ON $_operationsTable(account_key)'); }
-      if (oldVersion < 7) await db.execute('ALTER TABLE $_deletedTable ADD COLUMN sync_version INTEGER');
+      if (oldVersion < 7) {
+        await db.execute('ALTER TABLE $_deletedTable ADD COLUMN sync_version INTEGER');
+      }
     });
     return _database!;
-  }
-
-  Future<String> _accountKey() async {
-    final accountId = await _storage.readAccountId();
-    final token = await _storage.read();
-    final key = accountId != null && accountId.isNotEmpty ? 'account:$accountId' : token == null || token.isEmpty ? 'anonymous' : 'token:${sha256.convert(utf8.encode(token)).toString()}';
-    if (_preparedAccountKey == key) return key;
-    if (accountId != null && accountId.isNotEmpty && token != null && token.isNotEmpty) {
-      final legacyKey = 'token:${sha256.convert(utf8.encode(token)).toString()}';
-      if (legacyKey != key) {
-        final db = await _db;
-        await db.transaction((txn) async {
-          await txn.update(_table, {'account_key': key}, where: 'account_key = ?', whereArgs: [legacyKey]);
-          await txn.update(_deletedTable, {'account_key': key}, where: 'account_key = ?', whereArgs: [legacyKey]);
-          await txn.update(_operationsTable, {'account_key': key}, where: 'account_key = ?', whereArgs: [legacyKey]);
-        });
-      }
-    }
-    _preparedAccountKey = key;
-    return key;
   }
 
   @override
   Future<List<Task>> getTasks() async {
     final key = await _accountKey();
-    final rows = await (await _db).query(_table, where: 'account_key = ?', whereArgs: [key], orderBy: 'due_at IS NULL, due_at ASC, id ASC');
-    return rows.map(_fromRow).toList(growable: false);
+    final rows = await (await _db).query(
+      _tasksTable,
+      columns: ['payload'],
+      where: 'account_key = ?',
+      whereArgs: [key],
+      orderBy: 'updated_at DESC',
+    );
+    return rows
+        .map((row) => Task.fromJson(jsonDecode(row['payload']! as String) as Map<String, dynamic>))
+        .toList(growable: false);
   }
 
   @override
   Future<void> saveTask(Task task) async {
     final key = await _accountKey();
-    final db = await _db;
-    await db.delete(_deletedTable, where: 'id = ? AND account_key = ?', whereArgs: [task.id, key]);
-    await db.insert(_table, {..._toRow(task), 'account_key': key}, conflictAlgorithm: ConflictAlgorithm.replace);
+    final payload = jsonEncode(task.toJson());
+    await (await _db).insert(
+      _tasksTable,
+      {
+        'id': task.id,
+        'account_key': key,
+        'payload': payload,
+        'updated_at': task.updatedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   @override
   Future<void> deleteTask(String id) async {
     final key = await _accountKey();
-    await (await _db).delete(_table, where: 'id = ? AND account_key = ?', whereArgs: [id, key]);
+    await (await _db).delete(
+      _tasksTable,
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+    );
   }
 
   @override
-  Future<List<PendingOperation>> getPendingOperations() async {
+  Future<void> addPendingUpsert(String id, DateTime updatedAt) async {
     final key = await _accountKey();
-    final rows = await (await _db).query(_operationsTable, where: 'account_key = ?', whereArgs: [key], orderBy: 'updated_at ASC, id ASC');
-    return rows.map((row) => PendingOperation(id: row['id']! as String, type: row['operation'] == 'delete' ? PendingOperationType.delete : PendingOperationType.upsert, updatedAt: DateTime.tryParse(row['updated_at']! as String) ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true))).toList(growable: false);
-  }
-
-  @override
-  Future<void> markPendingUpsert(String id, DateTime updatedAt) async {
-    final key = await _accountKey();
-    await (await _db).insert(_operationsTable, {'id': id, 'account_key': key, 'operation': 'upsert', 'updated_at': updatedAt.toUtc().toIso8601String()}, conflictAlgorithm: ConflictAlgorithm.replace);
-    await (await _db).delete(_deletedTable, where: 'id = ? AND account_key = ?', whereArgs: [id, key]);
-  }
-
-  @override
-  Future<void> clearPendingOperation(String id) async {
-    final key = await _accountKey();
-    await (await _db).delete(_operationsTable, where: 'id = ? AND account_key = ?', whereArgs: [id, key]);
-  }
-
-  @override
-  Future<List<String>> getPendingDeletes() async {
-    final key = await _accountKey();
-    final rows = await (await _db).query(_deletedTable, columns: ['id'], where: 'account_key = ?', whereArgs: [key], orderBy: 'deleted_at ASC');
-    return rows.map((row) => row['id']! as String).toList(growable: false);
-  }
-
-  Future<int?> getPendingDeleteVersion(String id) async {
-    final key = await _accountKey();
-    final row = (await (await _db).query(_deletedTable, columns: ['sync_version'], where: 'id = ? AND account_key = ?', whereArgs: [id], limit: 1)).firstOrNull;
-    return row?['sync_version'] as int?;
+    await (await _db).insert(
+      _operationsTable,
+      {
+        'id': id,
+        'account_key': key,
+        'type': PendingOperationType.upsert.name,
+        'updated_at': updatedAt.millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   @override
   Future<void> addPendingDelete(String id) async {
     final key = await _accountKey();
     final db = await _db;
-    final taskRows = await db.query(_table, columns: ['payload'], where: 'id = ? AND account_key = ?', whereArgs: [id], limit: 1);
-    int? version;
-    if (taskRows.isNotEmpty) {
-      final payload = taskRows.first['payload'] as String?;
-      if (payload != null && payload.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(payload);
-          if (decoded is Map && decoded['syncVersion'] is int) version = decoded['syncVersion'] as int;
-        } catch (_) {}
-      }
+    final rows = await db.query(
+      _tasksTable,
+      columns: ['payload'],
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+      limit: 1,
+    );
+    int? syncVersion;
+    if (rows.isNotEmpty) {
+      final payload = jsonDecode(rows.first['payload']! as String) as Map<String, dynamic>;
+      syncVersion = (payload['syncVersion'] as num?)?.toInt();
     }
-    final deletedAt = DateTime.now().toUtc().toIso8601String();
-    await db.insert(_deletedTable, {'id': id, 'account_key': key, 'deleted_at': deletedAt, 'sync_version': version}, conflictAlgorithm: ConflictAlgorithm.replace);
-    await db.insert(_operationsTable, {'id': id, 'account_key': key, 'operation': 'delete', 'updated_at': deletedAt}, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      _deletedTable,
+      {
+        'id': id,
+        'account_key': key,
+        'deleted_at': DateTime.now().millisecondsSinceEpoch,
+        'sync_version': syncVersion,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await db.delete(
+      _operationsTable,
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+    );
   }
 
   @override
-  Future<void> clearPendingDelete(String id) async => clearPendingOperation(id);
+  Future<List<String>> getPendingDeletes() async {
+    final key = await _accountKey();
+    final rows = await (await _db).query(
+      _deletedTable,
+      columns: ['id'],
+      where: 'account_key = ?',
+      whereArgs: [key],
+      orderBy: 'deleted_at ASC',
+    );
+    return rows.map((row) => row['id']! as String).toList(growable: false);
+  }
+
+  Future<int?> getPendingDeleteVersion(String id) async {
+    final key = await _accountKey();
+    final rows = await (await _db).query(
+      _deletedTable,
+      columns: ['sync_version'],
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['sync_version'] as int?;
+  }
+
+  @override
+  Future<void> clearPendingDelete(String id) async {
+    final key = await _accountKey();
+    await (await _db).delete(
+      _deletedTable,
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+    );
+  }
+
+  @override
+  Future<List<PendingOperation>> getPendingOperations() async {
+    final key = await _accountKey();
+    final rows = await (await _db).query(
+      _operationsTable,
+      where: 'account_key = ?',
+      whereArgs: [key],
+      orderBy: 'updated_at ASC',
+    );
+    return rows.map((row) => PendingOperation(
+      id: row['id']! as String,
+      type: PendingOperationType.values.byName(row['type']! as String),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at']! as int),
+    )).toList(growable: false);
+  }
+
+  @override
+  Future<void> clearPendingOperation(String id) async {
+    final key = await _accountKey();
+    await (await _db).delete(
+      _operationsTable,
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+    );
+  }
 
   @override
   Future<void> close() async {
-    final database = _database;
+    await _database?.close();
     _database = null;
-    _preparedAccountKey = null;
-    await database?.close();
-  }
-
-  Map<String, Object?> _toRow(Task task) => {'id': task.id, 'title': task.title, 'notes': task.notes, 'due_at': task.dueAt?.toIso8601String(), 'reminder_type': task.reminderType.name, 'reminder_interval_minutes': task.reminderInterval?.inMinutes, 'priority': task.priority.name, 'is_completed': task.isCompleted ? 1 : 0, 'payload': jsonEncode(task.toJson()), 'updated_at': task.updatedAt?.toIso8601String()};
-
-  Task _fromRow(Map<String, Object?> row) {
-    final payload = row['payload'] as String?;
-    if (payload != null && payload.isNotEmpty) {
-      try { final decoded = jsonDecode(payload); if (decoded is Map) return Task.fromJson(Map<String, dynamic>.from(decoded)); } catch (_) {}
-    }
-    final type = TaskReminderType.values.firstWhere((v) => v.name == row['reminder_type'], orElse: () => TaskReminderType.none);
-    final priority = TaskPriority.values.firstWhere((v) => v.name == row['priority'], orElse: () => TaskPriority.normal);
-    final interval = row['reminder_interval_minutes'] as int?;
-    final due = row['due_at'] as String?;
-    final updated = row['updated_at'] as String?;
-    return Task(id: row['id']! as String, title: row['title']! as String, notes: row['notes'] as String? ?? '', dueAt: due == null ? null : DateTime.tryParse(due), reminderType: type, reminderInterval: interval == null ? null : Duration(minutes: interval), priority: priority, isCompleted: (row['is_completed'] as int? ?? 0) == 1, updatedAt: updated == null ? null : DateTime.tryParse(updated));
   }
 }
