@@ -89,7 +89,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TaskDetailPage), findsOneWidget);
 
-    final detailScrollable = find.byType(Scrollable);
+    final detailScrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(
       find.text('Checklist'),
       500,
