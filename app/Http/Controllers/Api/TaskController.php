@@ -7,6 +7,7 @@ use App\Models\Task;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
@@ -14,6 +15,17 @@ class TaskController extends Controller
     {
         abort_unless($request->user()->tokenCan('tasks:read'), 403);
         return response()->json($request->user()->tasks()->latest('updated_at')->paginate(100));
+    }
+
+    public function deleted(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->tokenCan('tasks:read'), 403);
+        return response()->json([
+            'data' => DB::table('deleted_tasks')
+                ->where('user_id', $request->user()->id)
+                ->orderBy('deleted_at')
+                ->get(['client_id', 'deleted_at']),
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -28,6 +40,19 @@ class TaskController extends Controller
         ]);
 
         $clientUpdatedAt = $validated['client_updated_at'] ?? $this->clientUpdatedAt($validated['payload']);
+        $deleted = DB::table('deleted_tasks')
+            ->where('user_id', $request->user()->id)
+            ->where('client_id', $validated['client_id'])
+            ->first();
+
+        if ($deleted) {
+            $incoming = $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now();
+            if ($incoming->lessThanOrEqualTo(Carbon::parse($deleted->deleted_at))) {
+                return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true], 409);
+            }
+            DB::table('deleted_tasks')->where('id', $deleted->id)->delete();
+        }
+
         $existing = $request->user()->tasks()->where('client_id', $validated['client_id'])->first();
 
         if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
@@ -47,9 +72,7 @@ class TaskController extends Controller
             ]
         );
 
-        return response()->json([
-            'task' => $this->canonicalTask($task->fresh()),
-        ], $existing ? 200 : 201);
+        return response()->json(['task' => $this->canonicalTask($task->fresh())], $existing ? 200 : 201);
     }
 
     public function update(Request $request, Task $task): JsonResponse
@@ -64,10 +87,7 @@ class TaskController extends Controller
         ]);
         $clientUpdatedAt = $validated['client_updated_at'] ?? (isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null);
         if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
-            return response()->json([
-                'message' => 'Server has a newer version of this task.',
-                'task' => $this->canonicalTask($task->fresh()),
-            ], 409);
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
         }
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
         if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
@@ -83,7 +103,13 @@ class TaskController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 404);
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        $task->delete();
+        DB::transaction(function () use ($request, $task) {
+            DB::table('deleted_tasks')->updateOrInsert(
+                ['user_id' => $request->user()->id, 'client_id' => $task->client_id],
+                ['deleted_at' => now()]
+            );
+            $task->delete();
+        });
         return response()->json(['message' => 'Task deleted.']);
     }
 
@@ -101,19 +127,7 @@ class TaskController extends Controller
         $payload['title'] = $task->title;
         $payload['isCompleted'] = $task->completed;
         $payload['updatedAt'] = $task->updated_at?->toISOString();
-        if (!isset($payload['createdAt']) && $task->created_at) {
-            $payload['createdAt'] = $task->created_at->toISOString();
-        }
-
-        return [
-            'id' => $task->id,
-            'client_id' => $task->client_id,
-            'title' => $task->title,
-            'completed' => $task->completed,
-            'payload' => $payload,
-            'client_updated_at' => $task->client_updated_at?->toISOString(),
-            'updated_at' => $task->updated_at?->toISOString(),
-            'created_at' => $task->created_at?->toISOString(),
-        ];
+        if (!isset($payload['createdAt']) && $task->created_at) $payload['createdAt'] = $task->created_at->toISOString();
+        return ['id' => $task->id, 'client_id' => $task->client_id, 'title' => $task->title, 'completed' => $task->completed, 'payload' => $payload, 'client_updated_at' => $task->client_updated_at?->toISOString(), 'updated_at' => $task->updated_at?->toISOString(), 'created_at' => $task->created_at?->toISOString()];
     }
 }
