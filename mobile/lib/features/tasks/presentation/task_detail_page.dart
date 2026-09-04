@@ -30,7 +30,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           (value) => value.id == widget.task.id,
           orElse: () => widget.task,
         );
-        final scheme = Theme.of(context).colorScheme;
         final completed = task.subtasks.where((item) => item.isCompleted).length;
         final progress = task.subtasks.isEmpty ? 0.0 : completed / task.subtasks.length;
         final due = task.dueAt;
@@ -167,7 +166,6 @@ class _TaskHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = overdue ? scheme.error : scheme.primary;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
       decoration: BoxDecoration(
@@ -355,7 +353,7 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(icon, size: 20, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))), if (trailing != null) trailing!]),
+        Row(children: [Icon(icon, size: 20, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))), ?trailing]),
         const SizedBox(height: 15),
         child,
       ]),
