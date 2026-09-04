@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -60,18 +61,15 @@ class LocalNotificationService {
     await android?.createNotificationChannel(const AndroidNotificationChannel('todo_reminders', 'Task reminders', description: 'Reminders for scheduled tasks', importance: Importance.high));
     final scheduled = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
     await plugin.cancel(id: _snoozeNotificationId(taskId));
-    await plugin.zonedSchedule(
-      id: _snoozeNotificationId(taskId),
-      title: 'Task reminder',
-      body: 'Snoozed reminder.',
-      scheduledDate: scheduled,
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: <AndroidNotificationAction>[AndroidNotificationAction(snooze5Action, '5 min'), AndroidNotificationAction(snooze10Action, '10 min'), AndroidNotificationAction(snooze30Action, '30 min')]),
-        iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
-      ),
-      payload: taskId,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: <AndroidNotificationAction>[AndroidNotificationAction(snooze5Action, '5 min'), AndroidNotificationAction(snooze10Action, '10 min'), AndroidNotificationAction(snooze30Action, '30 min')]),
+      iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
     );
+    try {
+      await plugin.zonedSchedule(id: _snoozeNotificationId(taskId), title: 'Task reminder', body: 'Snoozed reminder.', scheduledDate: scheduled, notificationDetails: details, payload: taskId, androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle);
+    } on PlatformException {
+      await plugin.zonedSchedule(id: _snoozeNotificationId(taskId), title: 'Task reminder', body: 'Snoozed reminder.', scheduledDate: scheduled, notificationDetails: details, payload: taskId, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
+    }
   }
 
   Future<void> initialize() async {
@@ -129,10 +127,15 @@ class LocalNotificationService {
     final minute = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day, scheduledAt.hour, scheduledAt.minute);
     final scheduled = tz.TZDateTime.from(minute, tz.local);
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
-    await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: NotificationDetails(
+    final details = NotificationDetails(
       android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: includeSnoozeActions ? <AndroidNotificationAction>[const AndroidNotificationAction(snooze5Action, '5 min'), const AndroidNotificationAction(snooze10Action, '10 min'), const AndroidNotificationAction(snooze30Action, '30 min')] : const <AndroidNotificationAction>[]),
       iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
-    ), payload: payload, androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle);
+    );
+    try {
+      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle);
+    } on PlatformException {
+      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
+    }
   }
 
   Future<void> cancel(int id) async {
