@@ -35,14 +35,10 @@ jobs:
           extensions: mbstring, sqlite3, pdo_sqlite, xml
           coverage: none
       - uses: ramsey/composer-install@v3
-      - name: Install test support
-        run: composer require --dev mockery/mockery:^1.6 fakerphp/faker:^1.24 --no-interaction --no-progress
       - run: cp .env.example .env
-      - run: mkdir -p bootstrap/cache
+      - run: mkdir -p bootstrap/cache database
       - run: touch database/database.sqlite
       - run: php artisan key:generate --force
       - run: php artisan migrate --force
-      - name: Install PHPUnit
-        run: wget -q https://phar.phpunit.de/phpunit-12.phar -O phpunit.phar
       - name: Run Laravel test suite
-        run: php phpunit.phar --configuration phpunit.xml
+        run: ./vendor/bin/phpunit --configuration phpunit.xml
