@@ -26,14 +26,7 @@ class TaskController extends Controller
     public function store(Request $request): JsonResponse
     {
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        $validated = $request->validate([
-            'client_id' => ['required', 'string', 'max:64'],
-            'title' => ['required', 'string', 'max:200', 'not_regex:/^\s*$/'],
-            'completed' => ['sometimes', 'boolean'],
-            'payload' => ['required', 'array', 'max:50'],
-            'client_updated_at' => ['nullable', 'date'],
-            'sync_version' => ['nullable', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validate(['client_id' => ['required', 'string', 'max:64'], 'title' => ['required', 'string', 'max:200', 'not_regex:/^\s*$/'], 'completed' => ['sometimes', 'boolean'], 'payload' => ['required', 'array', 'max:50'], 'client_updated_at' => ['nullable', 'date'], 'sync_version' => ['nullable', 'integer', 'min:1']]);
         $incomingVersion = $validated['sync_version'] ?? null;
         $clientUpdatedAt = $validated['client_updated_at'] ?? $this->clientUpdatedAt($validated['payload']);
         $deleted = DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $validated['client_id'])->first();
@@ -63,10 +56,7 @@ class TaskController extends Controller
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
         if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
         unset($validated['sync_version']);
-        if (isset($validated['payload'])) {
-            $validated['payload']['title'] = $validated['title'] ?? $validated['payload']['title'] ?? $task->title;
-            $validated['payload']['isCompleted'] = $validated['completed'] ?? $validated['payload']['isCompleted'] ?? $task->completed;
-        }
+        if (isset($validated['payload'])) { $validated['payload']['title'] = $validated['title'] ?? $validated['payload']['title'] ?? $task->title; $validated['payload']['isCompleted'] = $validated['completed'] ?? $validated['payload']['isCompleted'] ?? $task->completed; }
         $validated['sync_version'] = (int) $task->sync_version + 1;
         $task->update($validated);
         return response()->json(['task' => $this->canonicalTask($task->fresh())]);
@@ -83,9 +73,15 @@ class TaskController extends Controller
     public function destroyByClientId(Request $request, string $clientId): JsonResponse
     {
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
+        $incomingVersion = $request->query('sync_version');
+        if ($incomingVersion !== null && (!is_numeric($incomingVersion) || (int) $incomingVersion < 1)) return response()->json(['message' => 'Invalid sync version.'], 422);
         $task = $request->user()->tasks()->where('client_id', $clientId)->first();
-        if ($task) $this->tombstone($request, $task->client_id, $task);
-        else if (!DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $clientId)->exists()) DB::table('deleted_tasks')->insert(['user_id' => $request->user()->id, 'client_id' => $clientId, 'deleted_at' => now(), 'sync_version' => 1]);
+        if ($task) {
+            if ($incomingVersion !== null && (int) $incomingVersion < (int) $task->sync_version) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
+            $this->tombstone($request, $task->client_id, $task);
+        } elseif (!DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $clientId)->exists()) {
+            DB::table('deleted_tasks')->insert(['user_id' => $request->user()->id, 'client_id' => $clientId, 'deleted_at' => now(), 'sync_version' => 1]);
+        }
         return response()->json(['message' => 'Task deleted.']);
     }
 
