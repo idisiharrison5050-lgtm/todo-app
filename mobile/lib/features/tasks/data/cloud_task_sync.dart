@@ -16,16 +16,26 @@ class CloudTaskSync {
   Future<List<Task>> pull() async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return const <Task>[];
-    final response = await _dio.get('/tasks', options: _options(token));
-    final body = response.data as Map<String, dynamic>;
-    final raw = body['data'];
-    if (raw is! List) return const <Task>[];
-    return raw.whereType<Map>().map((item) {
-      final data = Map<String, dynamic>.from(item);
-      final payload = data['payload'];
-      if (payload is Map) return Task.fromJson(Map<String, dynamic>.from(payload));
-      return Task(id: data['client_id'] as String, title: data['title'] as String? ?? '', isCompleted: data['completed'] as bool? ?? false, updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? ''));
-    }).where((task) => task.title.trim().isNotEmpty).toList();
+
+    final tasks = <Task>[];
+    String? nextUrl = '/tasks';
+    while (nextUrl != null) {
+      final response = await _dio.get(nextUrl!, options: _options(token));
+      final body = response.data as Map<String, dynamic>;
+      final raw = body['data'];
+      if (raw is List) {
+        tasks.addAll(raw.whereType<Map>().map((item) {
+          final data = Map<String, dynamic>.from(item);
+          final payload = data['payload'];
+          if (payload is Map) return Task.fromJson(Map<String, dynamic>.from(payload));
+          return Task(id: data['client_id'] as String, title: data['title'] as String? ?? '', isCompleted: data['completed'] as bool? ?? false, updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? ''));
+        }).where((task) => task.title.trim().isNotEmpty));
+      }
+
+      final next = body['next_page_url'];
+      nextUrl = next is String && next.isNotEmpty ? next : null;
+    }
+    return tasks;
   }
 
   Future<Set<String>> pullDeletedIds() async {
