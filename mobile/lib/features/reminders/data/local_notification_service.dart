@@ -1,7 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+/// Handles notification actions when Android/iOS wakes a background isolate.
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  if (response.actionId == LocalNotificationService.snooze5Action ||
+      response.actionId == LocalNotificationService.snooze10Action ||
+      response.actionId == LocalNotificationService.snooze30Action) {
+    unawaited(LocalNotificationService.scheduleSnoozeFromBackground(response));
+  }
+}
 
 /// OS-level notification adapter for task reminders.
 class LocalNotificationService {
@@ -20,6 +32,71 @@ class LocalNotificationService {
   static const String snooze5Action = 'snooze_5';
   static const String snooze10Action = 'snooze_10';
   static const String snooze30Action = 'snooze_30';
+
+  static int _snoozeNotificationId(String taskId) {
+    var hash = 0x811c9dc5;
+    final value = '$taskId:99';
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash == 0 ? 1 : hash;
+  }
+
+  static int _minutesForAction(String actionId) {
+    switch (actionId) {
+      case snooze5Action:
+        return 5;
+      case snooze10Action:
+        return 10;
+      case snooze30Action:
+        return 30;
+      default:
+        return 0;
+    }
+  }
+
+  /// Schedules the snoozed notification directly from the background isolate.
+  /// This does not depend on the app's TaskStore or ReminderScheduler being alive.
+  @pragma('vm:entry-point')
+  static Future<void> scheduleSnoozeFromBackground(NotificationResponse response) async {
+    final taskId = response.payload;
+    final minutes = _minutesForAction(response.actionId ?? '');
+    if (taskId == null || taskId.isEmpty || minutes <= 0) return;
+
+    tz.initializeTimeZones();
+    final plugin = FlutterLocalNotificationsPlugin();
+    final scheduled = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
+
+    await plugin.cancel(id: _snoozeNotificationId(taskId));
+    await plugin.zonedSchedule(
+      id: _snoozeNotificationId(taskId),
+      title: 'Task reminder',
+      body: 'Snoozed reminder.',
+      scheduledDate: scheduled,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          'todo_reminders',
+          'Task reminders',
+          channelDescription: 'Reminders for scheduled tasks',
+          importance: Importance.max,
+          priority: Priority.max,
+          playSound: true,
+          enableVibration: true,
+          category: AndroidNotificationCategory.reminder,
+          visibility: NotificationVisibility.public,
+          actions: <AndroidNotificationAction>[
+            AndroidNotificationAction(snooze5Action, '5 min'),
+            AndroidNotificationAction(snooze10Action, '10 min'),
+            AndroidNotificationAction(snooze30Action, '30 min'),
+          ],
+        ),
+        iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
+      ),
+      payload: taskId,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
 
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
@@ -62,6 +139,7 @@ class LocalNotificationService {
             onNotificationTap?.call(taskId);
         }
       },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -123,9 +201,9 @@ class LocalNotificationService {
           visibility: NotificationVisibility.public,
           actions: includeSnoozeActions
               ? <AndroidNotificationAction>[
-                  const AndroidNotificationAction(snooze5Action, '5 min', showsUserInterface: true),
-                  const AndroidNotificationAction(snooze10Action, '10 min', showsUserInterface: true),
-                  const AndroidNotificationAction(snooze30Action, '30 min', showsUserInterface: true),
+                  const AndroidNotificationAction(snooze5Action, '5 min'),
+                  const AndroidNotificationAction(snooze10Action, '10 min'),
+                  const AndroidNotificationAction(snooze30Action, '30 min'),
                 ]
               : const <AndroidNotificationAction>[],
         ),
