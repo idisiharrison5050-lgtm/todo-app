@@ -10,7 +10,10 @@ import 'package:todo_mobile/features/tasks/presentation/task_detail_page.dart';
 import 'package:todo_mobile/features/tasks/presentation/today_page.dart';
 
 TaskStore createTestStore() {
-  return TaskStore(repository: MemoryTaskRepository(), reminderScheduler: NoopReminderScheduler());
+  return TaskStore(
+    repository: MemoryTaskRepository(),
+    reminderScheduler: NoopReminderScheduler(),
+  );
 }
 
 void main() {
@@ -20,14 +23,16 @@ void main() {
     await tester.pump();
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('Your tasks'), findsOneWidget);
-    expect(find.text('Nothing planned yet'), findsOneWidget);
+    expect(find.text('Nothing planned today'), findsOneWidget);
     expect(find.text('Add task'), findsOneWidget);
     store.dispose();
   });
 
   testWidgets('renders the full task navigation', (WidgetTester tester) async {
     final store = createTestStore();
-    await tester.pumpWidget(MaterialApp(home: HomePage(store: store, onLogout: () async {})));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(store: store, onLogout: () async {})),
+    );
     await tester.pump();
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Upcoming'), findsWidgets);
@@ -50,7 +55,9 @@ void main() {
     final store = createTestStore();
     await store.addTask(title: 'Buy groceries');
     await store.addTask(title: 'Write report');
-    await tester.pumpWidget(MaterialApp(home: HomePage(store: store, onLogout: () async {})));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(store: store, onLogout: () async {})),
+    );
     await tester.pump();
     expect(find.text('Buy groceries'), findsOneWidget);
     expect(find.text('Write report'), findsOneWidget);
@@ -79,8 +86,13 @@ void main() {
   testWidgets('groups upcoming tasks and opens task details', (WidgetTester tester) async {
     final store = createTestStore();
     final tomorrow = DateTime.now().add(const Duration(days: 1));
-    await store.addTask(title: 'Tomorrow task', dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9));
-    await tester.pumpWidget(MaterialApp(home: HomePage(store: store, onLogout: () async {})));
+    await store.addTask(
+      title: 'Tomorrow task',
+      dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(store: store, onLogout: () async {})),
+    );
     await tester.pump();
     await tester.tap(find.text('Upcoming').first);
     await tester.pump();
@@ -100,9 +112,25 @@ void main() {
     final now = DateTime.now();
     final laterToday = now.add(const Duration(minutes: 20));
     final tomorrow = now.add(const Duration(days: 1));
-    await store.addTask(title: 'Later today task', dueAt: DateTime(laterToday.year, laterToday.month, laterToday.day, laterToday.hour, laterToday.minute), priority: TaskPriority.high);
-    await store.addTask(title: 'Tomorrow low task', dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9), priority: TaskPriority.low);
-    await tester.pumpWidget(MaterialApp(home: HomePage(store: store, onLogout: () async {})));
+    await store.addTask(
+      title: 'Later today task',
+      dueAt: DateTime(
+        laterToday.year,
+        laterToday.month,
+        laterToday.day,
+        laterToday.hour,
+        laterToday.minute,
+      ),
+      priority: TaskPriority.high,
+    );
+    await store.addTask(
+      title: 'Tomorrow low task',
+      dueAt: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9),
+      priority: TaskPriority.low,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(store: store, onLogout: () async {})),
+    );
     await tester.pump();
     await tester.tap(find.text('Upcoming').first);
     await tester.pump();
@@ -122,7 +150,9 @@ void main() {
     await store.addTask(title: 'Active task');
     await store.addTask(title: 'Completed task');
     await store.toggleCompleted(store.tasks.last.id);
-    await tester.pumpWidget(MaterialApp(home: HomePage(store: store, onLogout: () async {})));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(store: store, onLogout: () async {})),
+    );
     await tester.pump();
     expect(find.text('Active task'), findsOneWidget);
     expect(find.text('Completed task'), findsNothing);
