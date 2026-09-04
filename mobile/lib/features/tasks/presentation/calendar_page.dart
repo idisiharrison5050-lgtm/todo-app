@@ -44,9 +44,15 @@ class _CalendarPageState extends State<CalendarPage> {
     final first = DateTime(_month.year, _month.month, 1);
     final lastDay = DateTime(_month.year, _month.month + 1, 0).day;
     final cells = <DateTime?>[];
-    for (var i = 0; i < first.weekday - 1; i++) cells.add(null);
-    for (var day = 1; day <= lastDay; day++) cells.add(DateTime(_month.year, _month.month, day));
-    while (cells.length % 7 != 0) cells.add(null);
+    for (var i = 0; i < first.weekday - 1; i++) {
+      cells.add(null);
+    }
+    for (var day = 1; day <= lastDay; day++) {
+      cells.add(DateTime(_month.year, _month.month, day));
+    }
+    while (cells.length % 7 != 0) {
+      cells.add(null);
+    }
     final selectedTasks = _tasksFor(_selected);
 
     return SafeArea(
@@ -244,7 +250,7 @@ class _CalendarTask extends StatelessWidget {
                   Icon(Icons.schedule_rounded, size: 14, color: accent),
                   const SizedBox(width: 4),
                   Text(TimeOfDay.fromDateTime(task.dueAt!).format(context), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-                  if (task.category.isNotEmpty) ...[const SizedBox(width: 8), Flexible(child: Text(task.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: themeBody(context)))],
+                  if (task.category.isNotEmpty) ...[const SizedBox(width: 8), Flexible(child: Text(task.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall))],
                 ]),
               ])),
               const SizedBox(width: 4),
@@ -255,6 +261,4 @@ class _CalendarTask extends StatelessWidget {
       ),
     );
   }
-
-  TextStyle? themeBody(BuildContext context) => Theme.of(context).textTheme.bodySmall;
 }
