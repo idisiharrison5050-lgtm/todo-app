@@ -59,10 +59,14 @@ class SyncingTaskRepository implements TaskRepository {
             continue;
           }
 
+          final sentUpdatedAt = task.updatedAt;
           final serverTask = await _cloud.push(task, operationId: operation.operationId);
+          final current = await _findLocalTask(task.id);
           if (serverTask == null) {
-            await _local.deleteTask(task.id);
-          } else {
+            if (_isSameLocalRevision(current, task)) {
+              await _local.deleteTask(task.id);
+            }
+          } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
             await _local.saveTask(serverTask);
           }
           await metadata.clearPendingOperation(operation.id);
@@ -103,9 +107,12 @@ class SyncingTaskRepository implements TaskRepository {
         final remoteTask = remoteById[task.id];
         if (remoteTask == null) {
           final serverTask = await _cloud.push(task, operationId: _uuid.v4());
+          final current = await _findLocalTask(task.id);
           if (serverTask == null) {
-            await _local.deleteTask(task.id);
-          } else {
+            if (_isSameLocalRevision(current, task)) {
+              await _local.deleteTask(task.id);
+            }
+          } else if (_isSameLocalRevision(current, task)) {
             await _local.saveTask(serverTask);
           }
           continue;
@@ -115,12 +122,19 @@ class SyncingTaskRepository implements TaskRepository {
         final remoteVersion = remoteTask.syncVersion;
         if (localVersion != null && remoteVersion != null) {
           if (remoteVersion > localVersion) {
-            await _local.saveTask(remoteTask);
+            final current = await _findLocalTask(task.id);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.saveTask(remoteTask);
+            }
           } else if (localVersion > remoteVersion) {
+            final sentUpdatedAt = task.updatedAt;
             final serverTask = await _cloud.push(task, operationId: _uuid.v4());
+            final current = await _findLocalTask(task.id);
             if (serverTask == null) {
-              await _local.deleteTask(task.id);
-            } else {
+              if (_isSameLocalRevision(current, task)) {
+                await _local.deleteTask(task.id);
+              }
+            } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
               await _local.saveTask(serverTask);
             }
           }
@@ -128,12 +142,19 @@ class SyncingTaskRepository implements TaskRepository {
           final localTime = task.updatedAt;
           final remoteTime = remoteTask.updatedAt;
           if (localTime != null && remoteTime != null && remoteTime.isAfter(localTime)) {
-            await _local.saveTask(remoteTask);
+            final current = await _findLocalTask(task.id);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.saveTask(remoteTask);
+            }
           } else {
+            final sentUpdatedAt = task.updatedAt;
             final serverTask = await _cloud.push(task, operationId: _uuid.v4());
+            final current = await _findLocalTask(task.id);
             if (serverTask == null) {
-              await _local.deleteTask(task.id);
-            } else {
+              if (_isSameLocalRevision(current, task)) {
+                await _local.deleteTask(task.id);
+              }
+            } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
               await _local.saveTask(serverTask);
             }
           }
@@ -166,6 +187,21 @@ class SyncingTaskRepository implements TaskRepository {
     }
   }
 
+  Future<Task?> _findLocalTask(String id) async {
+    final tasks = await _local.getTasks();
+    final matches = tasks.where((item) => item.id == id);
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  bool _isSameLocalRevision(Task? current, Task sent, {DateTime? sentUpdatedAt}) {
+    if (current == null) return false;
+    final expectedUpdatedAt = sentUpdatedAt ?? sent.updatedAt;
+    if (expectedUpdatedAt == null || current.updatedAt == null) {
+      return current.syncVersion == sent.syncVersion && current.title == sent.title && current.isCompleted == sent.isCompleted;
+    }
+    return current.updatedAt!.toUtc() == expectedUpdatedAt.toUtc();
+  }
+
   @override
   Future<List<Task>> getTasks() async {
     final tasks = await _local.getTasks();
@@ -185,9 +221,12 @@ class SyncingTaskRepository implements TaskRepository {
     state.value = state.value.copyWith(status: SyncStatus.syncing, pending: state.value.pending + 1);
     try {
       final serverTask = await _cloud.push(changedTask, operationId: operationId);
+      final current = await _findLocalTask(changedTask.id);
       if (serverTask == null) {
-        await _local.deleteTask(changedTask.id);
-      } else {
+        if (_isSameLocalRevision(current, changedTask)) {
+          await _local.deleteTask(changedTask.id);
+        }
+      } else if (_isSameLocalRevision(current, changedTask)) {
         await _local.saveTask(serverTask);
       }
       if (metadata != null) {
