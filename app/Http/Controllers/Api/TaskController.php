@@ -20,7 +20,7 @@ class TaskController extends Controller
     public function deleted(Request $request): JsonResponse
     {
         abort_unless($request->user()->tokenCan('tasks:read'), 403);
-        return response()->json(['data' => DB::table('deleted_tasks')->where('user_id', $request->user()->id)->orderBy('deleted_at')->get(['client_id', 'deleted_at'])]);
+        return response()->json(DB::table('deleted_tasks')->where('user_id', $request->user()->id)->orderBy('deleted_at')->paginate(100, ['client_id', 'deleted_at']));
     }
 
     public function store(Request $request): JsonResponse
