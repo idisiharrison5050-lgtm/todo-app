@@ -90,6 +90,20 @@ void main() {
     expect(() => store.addTask(title: 'Repeat', dueAt: DateTime.now().add(const Duration(minutes: 5)), reminderType: TaskReminderType.interval), throwsArgumentError); store.dispose();
   });
 
+  test('rejects a recurring task without a due time', () async {
+    final store = TaskStore(repository: MemoryTaskRepository(), reminderScheduler: FakeReminderScheduler());
+    expect(() => store.addTask(title: 'Recurring', repeat: TaskRepeat.daily), throwsArgumentError); store.dispose();
+  });
+
+  test('rejects a custom recurrence without a positive interval', () async {
+    final store = TaskStore(repository: MemoryTaskRepository(), reminderScheduler: FakeReminderScheduler());
+    final due = DateTime.now().add(const Duration(hours: 1));
+    expect(() => store.addTask(title: 'Custom', dueAt: due, repeat: TaskRepeat.custom), throwsArgumentError);
+    expect(() => store.addTask(title: 'Custom', dueAt: due, repeat: TaskRepeat.custom, repeatIntervalDays: 0), throwsArgumentError);
+    expect(() => store.addTask(title: 'Custom', dueAt: due, repeat: TaskRepeat.custom, repeatIntervalDays: -1), throwsArgumentError);
+    store.dispose();
+  });
+
   test('advances a daily recurring task by one calendar day', () async {
     final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
     final due = DateTime(2026, 9, 10, 9, 15);
