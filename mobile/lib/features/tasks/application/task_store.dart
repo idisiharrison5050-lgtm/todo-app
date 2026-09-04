@@ -179,7 +179,9 @@ class TaskStore extends ChangeNotifier {
         break;
       case TaskRepeat.weekdays:
         next = due.add(const Duration(days: 1));
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) next = next.add(const Duration(days: 1));
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+          next = next.add(const Duration(days: 1));
+        }
         break;
       case TaskRepeat.weekly:
         next = due.add(const Duration(days: 7));
@@ -214,9 +216,15 @@ class TaskStore extends ChangeNotifier {
   }
 
   void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
-    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) throw ArgumentError('Task date and time must be in the future.');
-    if (reminderType != TaskReminderType.none && dueAt == null) throw ArgumentError('A reminder requires a due date and time.');
-    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) throw ArgumentError('A repeating reminder must have a valid interval.');
+    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
+      throw ArgumentError('Task date and time must be in the future.');
+    }
+    if (reminderType != TaskReminderType.none && dueAt == null) {
+      throw ArgumentError('A reminder requires a due date and time.');
+    }
+    if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
+      throw ArgumentError('A repeating reminder must have a valid interval.');
+    }
   }
 
   Future<void> _restoreReminders() async {
@@ -224,7 +232,9 @@ class TaskStore extends ChangeNotifier {
     if (tasks.isEmpty) return;
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
-    for (final task in tasks) await _reminderScheduler.schedule(task);
+    for (final task in tasks) {
+      await _reminderScheduler.schedule(task);
+    }
   }
 
   Future<void> _syncReminder(Task task) async {
@@ -245,7 +255,7 @@ class TaskStore extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(_connectivitySyncManager?.dispose());
-    _repository.close();
+    unawaited(_repository.close());
     super.dispose();
   }
 }
