@@ -38,10 +38,12 @@ class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
         builder: (context, child) => IndexedStack(index: _index, children: pages),
       ),
       bottomNavigationBar: _Dock(index: _index, onChanged: (value) => setState(() => _index = value)),
-      floatingActionButton: _index == 0 ? Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: FloatingActionButton(onPressed: _addTask, child: const Icon(Icons.add_rounded, size: 29)),
-      ) : null,
+      floatingActionButton: _index == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: FloatingActionButton(onPressed: _addTask, child: const Icon(Icons.add_rounded, size: 29)),
+            )
+          : null,
     );
   }
 }
@@ -289,14 +291,82 @@ class _SearchState extends State<_Search> {
       if (_filter == 'Favorites' && !task.isFavorite) return false;
       return true;
     }).toList();
-    results.sort((a, b) { if (a.isCompleted != b.isCompleted) return a.isCompleted ? 1 : -1; if (a.dueAt == null) return 1; if (b.dueAt == null) return -1; return a.dueAt!.compareTo(b.dueAt!); });
+    results.sort((a, b) {
+      if (a.isCompleted != b.isCompleted) return a.isCompleted ? 1 : -1;
+      if (a.dueAt == null) return 1;
+      if (b.dueAt == null) return -1;
+      return a.dueAt!.compareTo(b.dueAt!);
+    });
 
-    return SafeArea(child: CustomScrollView(slivers: [
-      SliverPadding(padding: const EdgeInsets.fromLTRB(22, 22, 22, 14), sliver: SliverToBoxAdapter(child: Text('Find anything', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1)))),
-      SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 22), sliver: SliverToBoxAdapter(child: TextField(controller: _controller, onChanged: (value) => setState(() => _query = value), decoration: InputDecoration(hintText: 'Tasks, notes, tags…', prefixIcon: const Icon(Icons.search_rounded), suffixIcon: _query.isEmpty ? null : IconButton(onPressed: () { _controller.clear(); setState(() => _query = ''); }, icon: const Icon(Icons.close_rounded))))),
-      SliverPadding(padding: const EdgeInsets.fromLTRB(22, 13, 22, 12), sliver: SliverToBoxAdapter(child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: ['All', 'Active', 'Completed', 'Favorites'].map((value) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(value), selected: _filter == value, onSelected: (_) => setState(() => _filter = value))).toList())))),
-      if (results.isEmpty) const SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('No tasks found.')))
-      else SliverPadding(padding: const EdgeInsets.fromLTRB(22, 4, 22, 100), sliver: SliverList.separated(itemCount: results.length, itemBuilder: (_, index) => _TaskTile(task: results[index], store: widget.store), separatorBuilder: (_, __) => const SizedBox(height: 9))),
-    ]));
+    final chips = ['All', 'Active', 'Completed', 'Favorites'];
+
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+            sliver: SliverToBoxAdapter(
+              child: Text('Find anything', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1)),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            sliver: SliverToBoxAdapter(
+              child: TextField(
+                controller: _controller,
+                onChanged: (value) => setState(() => _query = value),
+                decoration: InputDecoration(
+                  hintText: 'Tasks, notes, tags…',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _controller.clear();
+                            setState(() => _query = '');
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(22, 13, 22, 12),
+            sliver: SliverToBoxAdapter(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: chips.map((value) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(value),
+                        selected: _filter == value,
+                        onSelected: (_) => setState(() => _filter = value),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+          if (results.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: Text('No tasks found.')),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 100),
+              sliver: SliverList.separated(
+                itemCount: results.length,
+                itemBuilder: (_, index) => _TaskTile(task: results[index], store: widget.store),
+                separatorBuilder: (_, __) => const SizedBox(height: 9),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
