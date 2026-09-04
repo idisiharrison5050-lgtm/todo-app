@@ -124,7 +124,65 @@
 - [ ] Rollback plan
 - [ ] Final security/privacy review
 
-## Current position
-The backend authentication, task, reminder, synchronization, deletion-tombstone, and idempotency foundations are implemented and covered by a green CI pipeline. The Flutter client has secure token storage, local persistence, API synchronization, offline mutation handling, timezone-aware reminder scheduling, snooze actions, and core task/reminder screens.
+## Stage 12 — Premium Product Completion
 
-The next work is **hardening and verification**, not adding random features: finish sync conflict edge cases, complete timezone/DST and notification lifecycle tests, perform the security/dependency/privacy review, then validate the complete app on a physical Android device before private beta.
+These are product-quality goals, not a license to add random features. Implement them only after the reliability gates above are stable.
+
+### Task intelligence and organization
+- [ ] Natural-language task capture
+- [ ] Smart task grouping and smart views
+- [ ] Intelligent workload-aware suggestions
+- [ ] Quick reschedule/snooze actions
+- [ ] Bulk task operations
+- [ ] Task templates
+- [ ] Routines
+- [ ] Subtask/checklist progress improvements
+- [ ] Archive and restore
+- [ ] Robust undo flows
+
+### Planning
+- [ ] Month/week/day calendar modes
+- [ ] Drag-to-reschedule with undo
+- [ ] Workload/capacity cues
+- [ ] Better upcoming planning view
+
+### Focus and insights
+- [ ] Real focus sessions with pause/resume
+- [ ] Task-linked focus sessions
+- [ ] Focus history
+- [ ] Useful productivity insights
+- [ ] Daily/weekly review surfaces
+
+### Device experience
+- [ ] Notification complete/snooze actions
+- [ ] Notification deep links
+- [ ] Cold-start/background recovery verification
+- [ ] Privacy-conscious notification content
+- [ ] Widgets where justified
+
+### Account and polish
+- [ ] Final onboarding and permission education
+- [ ] Appearance/settings completion
+- [ ] Account/session management
+- [ ] Account deletion
+- [ ] Email verification decision
+- [ ] Accessibility completion
+- [ ] Responsive/screen-size completion
+- [ ] Premium motion/haptics/gesture polish
+
+## Current position
+
+The foundation is substantially implemented. The immediate objective is to finish reliability and verification while raising the client to a genuinely premium product bar.
+
+**Execution order:**
+1. Stabilize and type-check the latest Flutter UI changes.
+2. Harden task completion/error handling and quick actions.
+3. Finish Home/Today, Calendar, Focus, Search/Organization, and Settings UX.
+4. Complete notification lifecycle and timezone/DST verification.
+5. Complete two-device sync conflict and offline/reconnect verification.
+6. Run security, dependency, privacy, and logging reviews.
+7. Complete accessibility and responsive QA.
+8. Validate on physical Android and iOS devices.
+9. Only then move into the premium differentiator backlog and private beta/release preparation.
+
+For the durable handoff of product intent, architecture, priorities, and engineering rules, see `docs/AI_CONTINUATION.md`.
