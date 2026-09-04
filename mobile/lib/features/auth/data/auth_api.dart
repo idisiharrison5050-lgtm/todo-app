@@ -55,7 +55,13 @@ class AuthApi {
     final data = error.response?.data;
     if (statusCode == 422 && data is Map<String, dynamic>) {
       final errors = data['errors'];
-      if (errors is Map) for (final value in errors.values) if (value is List && value.isNotEmpty) return AuthApiException(value.first.toString(), statusCode: statusCode);
+      if (errors is Map) {
+        for (final value in errors.values) {
+          if (value is List && value.isNotEmpty) {
+            return AuthApiException(value.first.toString(), statusCode: statusCode);
+          }
+        }
+      }
       final message = data['message'];
       if (message is String && message.isNotEmpty) return AuthApiException(message, statusCode: statusCode);
     }
