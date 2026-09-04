@@ -40,5 +40,7 @@ jobs:
       - run: touch database/database.sqlite
       - run: php artisan key:generate --force
       - run: php artisan migrate --force
+      - name: Install PHPUnit
+        run: wget -q https://phar.phpunit.de/phpunit-12.phar -O phpunit.phar
       - name: Run Laravel test suite
-        run: ./vendor/bin/phpunit --configuration phpunit.xml
+        run: php phpunit.phar --configuration phpunit.xml
