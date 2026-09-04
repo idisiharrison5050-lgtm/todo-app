@@ -29,16 +29,17 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
   tz_data.initializeTimeZones();
   final persistedTimeZone = task.reminderTimeZone?.trim();
   final hasPersistedTimeZone = persistedTimeZone?.isNotEmpty == true;
-  final timeZone = hasPersistedTimeZone ? persistedTimeZone! : tz.local.name;
-  final location = _safeLocation(timeZone);
   final current = now ?? DateTime.now();
-  final currentInZone = hasPersistedTimeZone
-      ? tz.TZDateTime.from(current, location)
-      : tz.TZDateTime(location, current.year, current.month, current.day, current.hour, current.minute, current.second);
-  final due = task.dueAt!;
+
+  if (!hasPersistedTimeZone) {
+    return _buildLocalWallClockSchedule(task, current);
+  }
+
+  final location = _safeLocation(persistedTimeZone!);
+  final currentInZone = tz.TZDateTime.from(current, location);
+  var fireAt = _wallClockInZone(task.dueAt!, location);
 
   if (task.reminderType == TaskReminderType.once) {
-    final fireAt = _wallClockInZone(due, location);
     if (!fireAt.isAfter(currentInZone)) {
       return null;
     }
@@ -55,7 +56,6 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
     return null;
   }
 
-  var fireAt = _wallClockInZone(due, location);
   while (!fireAt.isAfter(currentInZone)) {
     fireAt = fireAt.add(interval);
   }
@@ -65,6 +65,41 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
     title: task.title,
     fireAt: _asDateTime(fireAt),
     timeZone: location.name,
+    repeatInterval: interval,
+  );
+}
+
+ReminderSchedule? _buildLocalWallClockSchedule(Task task, DateTime current) {
+  final due = task.dueAt!;
+  var fireAt = DateTime(due.year, due.month, due.day, due.hour, due.minute, due.second);
+  final currentWallClock = DateTime(current.year, current.month, current.day, current.hour, current.minute, current.second);
+
+  if (task.reminderType == TaskReminderType.once) {
+    if (!fireAt.isAfter(currentWallClock)) {
+      return null;
+    }
+    return ReminderSchedule(
+      taskId: task.id,
+      title: task.title,
+      fireAt: fireAt,
+      timeZone: tz.local.name,
+    );
+  }
+
+  final interval = task.reminderInterval;
+  if (interval == null || interval <= Duration.zero) {
+    return null;
+  }
+
+  while (!fireAt.isAfter(currentWallClock)) {
+    fireAt = fireAt.add(interval);
+  }
+
+  return ReminderSchedule(
+    taskId: task.id,
+    title: task.title,
+    fireAt: fireAt,
+    timeZone: tz.local.name,
     repeatInterval: interval,
   );
 }
