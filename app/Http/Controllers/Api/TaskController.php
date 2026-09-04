@@ -192,12 +192,27 @@ class TaskController extends Controller
     {
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
         $incomingVersion = $request->query('sync_version');
+        $clientUpdatedAt = $request->query('client_updated_at');
         if ($incomingVersion !== null && (!is_numeric($incomingVersion) || (int) $incomingVersion < 1)) return response()->json(['message' => 'Invalid sync version.'], 422);
+        if ($clientUpdatedAt !== null) {
+            try {
+                $clientUpdatedAt = Carbon::parse($clientUpdatedAt);
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Invalid client_updated_at.'], 422);
+            }
+        }
+        if (trim($clientId) === '' || strlen($clientId) > 64) return response()->json(['message' => 'Invalid client id.'], 422);
 
-        $result = DB::transaction(function () use ($request, $clientId, $incomingVersion) {
+        $result = DB::transaction(function () use ($request, $clientId, $incomingVersion, $clientUpdatedAt) {
             $task = $request->user()->tasks()->where('client_id', $clientId)->lockForUpdate()->first();
             if ($task) {
                 if ($incomingVersion !== null && (int) $incomingVersion < (int) $task->sync_version) {
+                    return ['response' => response()->json([
+                        'message' => 'Server has a newer version of this task.',
+                        'task' => $this->canonicalTask($task),
+                    ], 409)];
+                }
+                if ($incomingVersion === null && $clientUpdatedAt !== null && $task->client_updated_at !== null && $task->client_updated_at->greaterThan($clientUpdatedAt)) {
                     return ['response' => response()->json([
                         'message' => 'Server has a newer version of this task.',
                         'task' => $this->canonicalTask($task),
