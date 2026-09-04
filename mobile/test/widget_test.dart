@@ -89,11 +89,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TaskDetailPage), findsOneWidget);
 
-    final detailList = find.byType(ListView);
+    final detailScrollable = find.byType(Scrollable);
     await tester.scrollUntilVisible(
       find.text('Checklist'),
       500,
-      scrollable: detailList,
+      scrollable: detailScrollable,
     );
     expect(find.text('Checklist'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
@@ -101,7 +101,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Complete task'),
       500,
-      scrollable: detailList,
+      scrollable: detailScrollable,
     );
     await tester.tap(find.text('Complete task'));
     await tester.pumpAndSettle();
