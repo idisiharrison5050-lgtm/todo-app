@@ -4,21 +4,32 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../../auth/data/token_storage.dart';
 import '../domain/task.dart';
 import 'sync_metadata_store.dart';
 import 'task_repository.dart';
 
 class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
-  LocalTaskDatabase({required this.accountKey});
+  LocalTaskDatabase({String? accountKey, TokenStorage? storage})
+      : _accountKeyValue = accountKey,
+        _storage = storage ?? const TokenStorage();
 
-  final String accountKey;
+  final String? _accountKeyValue;
+  final TokenStorage _storage;
   Database? _database;
   static const String _databaseName = 'todo_mobile.db';
   static const String _tasksTable = 'tasks';
   static const String _operationsTable = 'pending_operations';
   static const String _deletedTable = 'pending_deletes';
 
-  Future<String> _accountKey() async => accountKey;
+  Future<String?> _accountKey() async {
+    if (_accountKeyValue != null && _accountKeyValue!.isNotEmpty) {
+      return _accountKeyValue;
+    }
+    final accountId = await _storage.readAccountId();
+    if (accountId == null || accountId.isEmpty) return null;
+    return accountId;
+  }
 
   Future<Database> get _db async {
     if (_database != null) return _database!;
@@ -59,6 +70,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<List<Task>> getTasks() async {
     final key = await _accountKey();
+    if (key == null) return const <Task>[];
     final rows = await (await _db).query(
       _tasksTable,
       columns: ['payload'],
@@ -74,6 +86,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<void> saveTask(Task task) async {
     final key = await _accountKey();
+    if (key == null) return;
     final payload = jsonEncode(task.toJson());
     await (await _db).insert(
       _tasksTable,
@@ -90,6 +103,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<void> deleteTask(String id) async {
     final key = await _accountKey();
+    if (key == null) return;
     await (await _db).delete(
       _tasksTable,
       where: 'id = ? AND account_key = ?',
@@ -98,8 +112,9 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   }
 
   @override
-  Future<void> addPendingUpsert(String id, DateTime updatedAt) async {
+  Future<void> markPendingUpsert(String id, DateTime updatedAt) async {
     final key = await _accountKey();
+    if (key == null) return;
     await (await _db).insert(
       _operationsTable,
       {
@@ -115,6 +130,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<void> addPendingDelete(String id) async {
     final key = await _accountKey();
+    if (key == null) return;
     final db = await _db;
     final rows = await db.query(
       _tasksTable,
@@ -145,9 +161,25 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
     );
   }
 
+  Future<int?> getPendingDeleteVersion(String id) async {
+    final key = await _accountKey();
+    if (key == null) return null;
+    final rows = await (await _db).query(
+      _deletedTable,
+      columns: ['sync_version'],
+      where: 'id = ? AND account_key = ?',
+      whereArgs: [id, key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final value = rows.first['sync_version'];
+    return value is num ? value.toInt() : null;
+  }
+
   @override
   Future<List<String>> getPendingDeletes() async {
     final key = await _accountKey();
+    if (key == null) return const <String>[];
     final rows = await (await _db).query(
       _deletedTable,
       columns: ['id'],
@@ -158,22 +190,10 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
     return rows.map((row) => row['id']! as String).toList(growable: false);
   }
 
-  Future<int?> getPendingDeleteVersion(String id) async {
-    final key = await _accountKey();
-    final rows = await (await _db).query(
-      _deletedTable,
-      columns: ['sync_version'],
-      where: 'id = ? AND account_key = ?',
-      whereArgs: [id, key],
-      limit: 1,
-    );
-    if (rows.isEmpty) return null;
-    return rows.first['sync_version'] as int?;
-  }
-
   @override
   Future<void> clearPendingDelete(String id) async {
     final key = await _accountKey();
+    if (key == null) return;
     await (await _db).delete(
       _deletedTable,
       where: 'id = ? AND account_key = ?',
@@ -184,6 +204,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<List<PendingOperation>> getPendingOperations() async {
     final key = await _accountKey();
+    if (key == null) return const <PendingOperation>[];
     final rows = await (await _db).query(
       _operationsTable,
       where: 'account_key = ?',
@@ -200,6 +221,7 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
   @override
   Future<void> clearPendingOperation(String id) async {
     final key = await _accountKey();
+    if (key == null) return;
     await (await _db).delete(
       _operationsTable,
       where: 'id = ? AND account_key = ?',
