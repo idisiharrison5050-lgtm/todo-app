@@ -41,11 +41,20 @@ class CloudTaskSync {
   Future<Set<String>> pullDeletedIds() async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return const <String>{};
-    final response = await _dio.get('/tasks/deleted', options: _options(token));
-    final body = response.data as Map<String, dynamic>;
-    final raw = body['data'];
-    if (raw is! List) return const <String>{};
-    return raw.whereType<Map>().map((item) => item['client_id']).whereType<String>().toSet();
+
+    final ids = <String>{};
+    String? nextUrl = '/tasks/deleted';
+    while (nextUrl != null) {
+      final response = await _dio.get(nextUrl, options: _options(token));
+      final body = response.data as Map<String, dynamic>;
+      final raw = body['data'];
+      if (raw is List) {
+        ids.addAll(raw.whereType<Map>().map((item) => item['client_id']).whereType<String>());
+      }
+      final next = body['next_page_url'];
+      nextUrl = next is String && next.isNotEmpty ? next : null;
+    }
+    return ids;
   }
 
   Future<Task?> push(Task task) async {
