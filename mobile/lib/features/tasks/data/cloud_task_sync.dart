@@ -42,13 +42,7 @@ class CloudTaskSync {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return task;
     try {
-      final response = await _dio.post('/tasks', data: {
-        'client_id': task.id,
-        'title': task.title,
-        'completed': task.isCompleted,
-        'payload': task.toJson(),
-        'client_updated_at': task.updatedAt?.toIso8601String(),
-      }, options: _options(token));
+      final response = await _dio.post('/tasks', data: {'client_id': task.id, 'title': task.title, 'completed': task.isCompleted, 'payload': task.toJson(), 'client_updated_at': task.updatedAt?.toIso8601String()}, options: _options(token));
       return _taskFromResponse(response.data, task);
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
@@ -63,21 +57,7 @@ class CloudTaskSync {
   Future<void> delete(String id) async {
     final token = await _storage.read();
     if (token == null || token.isEmpty) return;
-    final tasks = await _dio.get('/tasks', options: _options(token));
-    final body = tasks.data as Map<String, dynamic>;
-    final raw = body['data'];
-    if (raw is! List) return;
-    for (final item in raw.whereType<Map>()) {
-      final data = Map<String, dynamic>.from(item);
-      if (data['client_id'] == id && data['id'] != null) {
-        try {
-          await _dio.delete('/tasks/${data['id']}', options: _options(token));
-        } on DioException catch (error) {
-          if (error.response?.statusCode != 404) rethrow;
-        }
-        return;
-      }
-    }
+    await _dio.delete('/tasks/by-client/${Uri.encodeComponent(id)}', options: _options(token));
   }
 
   Task _taskFromResponse(dynamic response, Task fallback) {
