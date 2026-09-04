@@ -13,6 +13,7 @@ class Task extends Model
         'completed',
         'payload',
         'client_updated_at',
+        'sync_version',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class Task extends Model
             'completed' => 'boolean',
             'payload' => 'array',
             'client_updated_at' => 'datetime',
+            'sync_version' => 'integer',
         ];
     }
 
