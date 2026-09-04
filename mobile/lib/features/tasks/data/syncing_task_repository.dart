@@ -22,12 +22,16 @@ class SyncingTaskRepository implements TaskRepository {
 
   SyncMetadataStore? get _metadata {
     final local = _local;
-    if (local is SyncMetadataStore) return local as SyncMetadataStore;
+    if (local is SyncMetadataStore) {
+      return local as SyncMetadataStore;
+    }
     return null;
   }
 
   Future<void> syncNow() async {
-    if (_syncRunning) return;
+    if (_syncRunning) {
+      return;
+    }
     _syncRunning = true;
     state.value = state.value.copyWith(status: SyncStatus.syncing, message: 'Syncing…');
     try {
@@ -59,7 +63,9 @@ class SyncingTaskRepository implements TaskRepository {
           final serverTask = await _cloud.push(task, operationId: operation.operationId);
           final current = await _findLocalTask(task.id);
           if (serverTask == null) {
-            if (_isSameLocalRevision(current, task)) await _local.deleteTask(task.id);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.deleteTask(task.id);
+            }
           } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
             await _local.saveTask(serverTask);
           }
@@ -82,7 +88,9 @@ class SyncingTaskRepository implements TaskRepository {
       final deletedIds = await _cloud.pullDeletedIds();
       for (final id in deletedIds) {
         await _local.deleteTask(id);
-        if (metadata != null) await metadata.clearPendingOperation(id);
+        if (metadata != null) {
+          await metadata.clearPendingOperation(id);
+        }
       }
 
       final local = await _local.getTasks();
@@ -91,13 +99,17 @@ class SyncingTaskRepository implements TaskRepository {
       final pendingIds = metadata == null ? <String>{} : (await metadata.getPendingOperations()).map((operation) => operation.id).toSet();
 
       for (final task in local) {
-        if (deletedIds.contains(task.id) || pendingIds.contains(task.id)) continue;
+        if (deletedIds.contains(task.id) || pendingIds.contains(task.id)) {
+          continue;
+        }
         final remoteTask = remoteById[task.id];
         if (remoteTask == null) {
           final serverTask = await _pushPersisted(task, metadata);
           final current = await _findLocalTask(task.id);
           if (serverTask == null) {
-            if (_isSameLocalRevision(current, task)) await _local.deleteTask(task.id);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.deleteTask(task.id);
+            }
           } else if (_isSameLocalRevision(current, task)) {
             await _local.saveTask(serverTask);
           }
@@ -109,13 +121,17 @@ class SyncingTaskRepository implements TaskRepository {
         if (localVersion != null && remoteVersion != null) {
           if (remoteVersion > localVersion) {
             final current = await _findLocalTask(task.id);
-            if (_isSameLocalRevision(current, task)) await _local.saveTask(remoteTask);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.saveTask(remoteTask);
+            }
           } else if (localVersion > remoteVersion) {
             final sentUpdatedAt = task.updatedAt;
             final serverTask = await _pushPersisted(task, metadata);
             final current = await _findLocalTask(task.id);
             if (serverTask == null) {
-              if (_isSameLocalRevision(current, task)) await _local.deleteTask(task.id);
+              if (_isSameLocalRevision(current, task)) {
+                await _local.deleteTask(task.id);
+              }
             } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
               await _local.saveTask(serverTask);
             }
@@ -125,13 +141,17 @@ class SyncingTaskRepository implements TaskRepository {
           final remoteTime = remoteTask.updatedAt;
           if (localTime != null && remoteTime != null && remoteTime.isAfter(localTime)) {
             final current = await _findLocalTask(task.id);
-            if (_isSameLocalRevision(current, task)) await _local.saveTask(remoteTask);
+            if (_isSameLocalRevision(current, task)) {
+              await _local.saveTask(remoteTask);
+            }
           } else {
             final sentUpdatedAt = task.updatedAt;
             final serverTask = await _pushPersisted(task, metadata);
             final current = await _findLocalTask(task.id);
             if (serverTask == null) {
-              if (_isSameLocalRevision(current, task)) await _local.deleteTask(task.id);
+              if (_isSameLocalRevision(current, task)) {
+                await _local.deleteTask(task.id);
+              }
             } else if (_isSameLocalRevision(current, task, sentUpdatedAt: sentUpdatedAt)) {
               await _local.saveTask(serverTask);
             }
@@ -141,7 +161,9 @@ class SyncingTaskRepository implements TaskRepository {
 
       final localIds = local.map((task) => task.id).toSet();
       for (final task in remote) {
-        if (!localIds.contains(task.id) && !deletedIds.contains(task.id)) await _local.saveTask(task);
+        if (!localIds.contains(task.id) && !deletedIds.contains(task.id)) {
+          await _local.saveTask(task);
+        }
       }
 
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: 0, message: 'Synced', lastSyncedAt: DateTime.now());
@@ -173,7 +195,9 @@ class SyncingTaskRepository implements TaskRepository {
   }
 
   bool _isSameLocalRevision(Task? current, Task sent, {DateTime? sentUpdatedAt}) {
-    if (current == null) return false;
+    if (current == null) {
+      return false;
+    }
     final expectedUpdatedAt = sentUpdatedAt ?? sent.updatedAt;
     if (expectedUpdatedAt == null || current.updatedAt == null) {
       return current.syncVersion == sent.syncVersion && current.title == sent.title && current.isCompleted == sent.isCompleted;
@@ -194,17 +218,23 @@ class SyncingTaskRepository implements TaskRepository {
     final operationId = _uuid.v4();
     await _local.saveTask(changedTask);
     final metadata = _metadata;
-    if (metadata != null) await metadata.markPendingUpsert(changedTask.id, changedTask.updatedAt!, operationId: operationId);
+    if (metadata != null) {
+      await metadata.markPendingUpsert(changedTask.id, changedTask.updatedAt!, operationId: operationId);
+    }
     state.value = state.value.copyWith(status: SyncStatus.syncing, pending: state.value.pending + 1);
     try {
       final serverTask = await _cloud.push(changedTask, operationId: operationId);
       final current = await _findLocalTask(changedTask.id);
       if (serverTask == null) {
-        if (_isSameLocalRevision(current, changedTask)) await _local.deleteTask(changedTask.id);
+        if (_isSameLocalRevision(current, changedTask)) {
+          await _local.deleteTask(changedTask.id);
+        }
       } else if (_isSameLocalRevision(current, changedTask)) {
         await _local.saveTask(serverTask);
       }
-      if (metadata != null) await metadata.clearPendingOperation(changedTask.id);
+      if (metadata != null) {
+        await metadata.clearPendingOperation(changedTask.id);
+      }
       state.value = state.value.copyWith(status: SyncStatus.synced, pending: state.value.pending > 0 ? state.value.pending - 1 : 0, message: 'Saved and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
       if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
@@ -224,11 +254,15 @@ class SyncingTaskRepository implements TaskRepository {
     final task = matchingTasks.isEmpty ? null : matchingTasks.first;
     final metadata = _metadata;
     final operationId = _uuid.v4();
-    if (metadata != null) await metadata.addPendingDelete(id, operationId: operationId);
+    if (metadata != null) {
+      await metadata.addPendingDelete(id, operationId: operationId);
+    }
     await _local.deleteTask(id);
     try {
       await _cloud.delete(id, syncVersion: task?.syncVersion, operationId: operationId);
-      if (metadata != null) await metadata.clearPendingDelete(id);
+      if (metadata != null) {
+        await metadata.clearPendingDelete(id);
+      }
       state.value = state.value.copyWith(status: SyncStatus.synced, message: 'Deleted and synced', lastSyncedAt: DateTime.now());
     } on DioException catch (error) {
       if (error.response?.statusCode != null && error.response!.statusCode! >= 400) {
