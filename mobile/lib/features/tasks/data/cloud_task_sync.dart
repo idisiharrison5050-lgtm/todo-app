@@ -20,7 +20,7 @@ class CloudTaskSync {
     final tasks = <Task>[];
     String? nextUrl = '/tasks';
     while (nextUrl != null) {
-      final response = await _dio.get(nextUrl!, options: _options(token));
+      final response = await _dio.get(nextUrl, options: _options(token));
       final body = response.data as Map<String, dynamic>;
       final raw = body['data'];
       if (raw is List) {
