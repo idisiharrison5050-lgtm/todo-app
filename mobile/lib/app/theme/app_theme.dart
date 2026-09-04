@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // A restrained palette: one confident accent, quiet neutrals, and semantic colors.
   static const _ink = Color(0xFF111318);
   static const _accent = Color(0xFF4F46E5);
   static const _accentLight = Color(0xFFEEF0FF);
@@ -92,6 +91,7 @@ class AppTheme {
         labelLarge: TextStyle(fontSize: 14, height: 1.1, fontWeight: FontWeight.w700, letterSpacing: -0.05, color: scheme.onSurface),
         labelMedium: TextStyle(fontSize: 12, height: 1.1, fontWeight: FontWeight.w700, color: muted),
       ),
+      iconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 22),
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -99,6 +99,15 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: scheme.outlineVariant.withValues(alpha: dark ? .72 : .9), width: 0.8)),
+      ),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        minVerticalPadding: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        iconColor: scheme.onSurfaceVariant,
+        textColor: scheme.onSurface,
+        titleTextStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: scheme.onSurface),
+        subtitleTextStyle: TextStyle(fontSize: 12.5, height: 1.3, color: muted),
       ),
       dividerTheme: DividerThemeData(color: scheme.outlineVariant.withValues(alpha: .8), thickness: 0.8, space: 1),
       inputDecorationTheme: InputDecorationTheme(
@@ -120,7 +129,36 @@ class AppTheme {
         indicatorColor: scheme.primary.withValues(alpha: .13),
         labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(fontSize: 11, fontWeight: states.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w600, color: states.contains(WidgetState.selected) ? scheme.onSurface : muted)),
       ),
+      navigationDrawerTheme: NavigationDrawerThemeData(
+        backgroundColor: dark ? _darkSurface : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: scheme.primary.withValues(alpha: .12),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(right: Radius.circular(28))),
+      ),
       chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)), side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .8)), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: scheme.onSurface)),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 13, vertical: 12)),
+          shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbIcon: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Icon(Icons.check_rounded, size: 15) : null),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(dark ? _darkRaised : Colors.white),
+          surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
+          elevation: WidgetStateProperty.all(8),
+          shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: scheme.inverseSurface, borderRadius: BorderRadius.circular(10)),
+        textStyle: TextStyle(color: scheme.onInverseSurface, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
       dialogTheme: DialogThemeData(elevation: 0, backgroundColor: dark ? const Color(0xFF15171C) : Colors.white, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
       bottomSheetTheme: BottomSheetThemeData(backgroundColor: dark ? const Color(0xFF111318) : Colors.white, surfaceTintColor: Colors.transparent, modalBackgroundColor: dark ? const Color(0xFF111318) : Colors.white, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30)))),
       snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), backgroundColor: dark ? const Color(0xFFE9E9ED) : const Color(0xFF292A2F), contentTextStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: dark ? const Color(0xFF292A2F) : Colors.white)),
@@ -129,6 +167,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(minimumSize: const Size(44, 44), padding: const EdgeInsets.symmetric(horizontal: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
       floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: scheme.onSurface, foregroundColor: scheme.surface, elevation: 4, focusElevation: 6, hoverElevation: 5, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
       checkboxTheme: CheckboxThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)), side: BorderSide(color: scheme.outline, width: 1.5)),
+      radioTheme: RadioThemeData(fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? scheme.primary : scheme.outline)),
       progressIndicatorTheme: ProgressIndicatorThemeData(linearTrackColor: scheme.outlineVariant.withValues(alpha: .55), circularTrackColor: scheme.outlineVariant.withValues(alpha: .55)),
     );
   }
