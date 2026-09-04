@@ -128,6 +128,14 @@ class LocalTaskDatabase implements TaskRepository, SyncMetadataStore {
     return value is num ? value.toInt() : int.tryParse(value.toString());
   }
 
+  Future<DateTime?> getPendingDeleteAt(String id) async {
+    final accountKey = await _accountKey();
+    if (accountKey == null || accountKey.isEmpty) return null;
+    final rows = await (await _database()).query(_deletedTable, columns: <String>['deleted_at'], where: 'id = ? AND account_key = ?', whereArgs: <Object>[id, accountKey], limit: 1);
+    if (rows.isEmpty || rows.first['deleted_at'] == null) return null;
+    return DateTime.tryParse(rows.first['deleted_at']!.toString());
+  }
+
   @override
   Future<String?> getPendingDeleteOperationId(String id) async {
     final accountKey = await _accountKey();
