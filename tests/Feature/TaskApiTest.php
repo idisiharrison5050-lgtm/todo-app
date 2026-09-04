@@ -60,12 +60,12 @@ class TaskApiTest extends TestCase
     public function test_deleting_by_client_id_creates_a_tombstone_and_blocks_stale_recreation(): void
     {
         $user = User::factory()->create(); $createdAt = Carbon::parse('2026-09-04T07:00:00Z');
-        Task::create(['user_id' => $user->id, 'client_id' => 'deleted-task', 'title' => 'Delete me', 'completed' => false, 'payload' => ['id' => 'deleted-task', 'title' => 'Delete me'], 'client_updated_at' => $createdAt]);
+        Task::create(['user_id' => $user->id, 'client_id' => 'deleted-task', 'title' => 'Delete me', 'completed' => false, 'payload' => ['id' => 'deleted-task', 'title' => 'Delete me'], 'client_updated_at' => $createdAt, 'sync_version' => 3]);
         Sanctum::actingAs($user, ['tasks:read', 'tasks:write']);
         $this->deleteJson('/api/v1/tasks/by-client/deleted-task')->assertOk();
         $this->assertDatabaseMissing('tasks', ['client_id' => 'deleted-task']);
-        $this->assertDatabaseHas('deleted_tasks', ['user_id' => $user->id, 'client_id' => 'deleted-task']);
-        $this->getJson('/api/v1/tasks/deleted')->assertOk()->assertJsonPath('data.0.client_id', 'deleted-task');
-        $this->postJson('/api/v1/tasks', ['client_id' => 'deleted-task', 'title' => 'Old offline copy', 'completed' => false, 'payload' => ['id' => 'deleted-task', 'title' => 'Old offline copy', 'updatedAt' => $createdAt->toIso8601String()], 'client_updated_at' => $createdAt->toIso8601String()])->assertStatus(409)->assertJsonPath('deleted', true);
+        $this->assertDatabaseHas('deleted_tasks', ['user_id' => $user->id, 'client_id' => 'deleted-task', 'sync_version' => 4]);
+        $this->getJson('/api/v1/tasks/deleted')->assertOk()->assertJsonPath('data.0.client_id', 'deleted-task')->assertJsonPath('data.0.sync_version', 4);
+        $this->postJson('/api/v1/tasks', ['client_id' => 'deleted-task', 'title' => 'Old offline copy', 'completed' => false, 'payload' => ['id' => 'deleted-task', 'title' => 'Old offline copy', 'updatedAt' => $createdAt->toIso8601String()], 'client_updated_at' => $createdAt->toIso8601String(), 'sync_version' => 3])->assertStatus(409)->assertJsonPath('deleted', true)->assertJsonPath('sync_version', 4);
     }
 }
