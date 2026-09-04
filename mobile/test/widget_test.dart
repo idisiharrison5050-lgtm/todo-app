@@ -35,11 +35,26 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Today'), findsOneWidget);
-    expect(find.text('Calendar'), findsOneWidget);
-    expect(find.text('Focus'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(NavigationDestination),
+      matching: find.text('Home'),
+    ), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(NavigationDestination),
+      matching: find.text('Today'),
+    ), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(NavigationDestination),
+      matching: find.text('Calendar'),
+    ), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(NavigationDestination),
+      matching: find.text('Focus'),
+    ), findsOneWidget);
+    expect(find.descendant(
+      of: find.byType(NavigationDestination),
+      matching: find.text('Settings'),
+    ), findsOneWidget);
     expect(find.text('Your day, in control.'), findsOneWidget);
     expect(find.text('Your day is clear'), findsOneWidget);
 
@@ -60,14 +75,14 @@ void main() {
 
   testWidgets('creates and completes a task from the home workspace', (WidgetTester tester) async {
     final store = createTestStore();
-    await store.addTask(title: 'Buy groceries');
+    await store.addTask(title: 'Buy groceries', dueAt: DateTime.now());
     await tester.pumpWidget(
       MaterialApp(home: HomePage(store: store, onLogout: () async {})),
     );
     await tester.pump();
 
     expect(find.text('Buy groceries'), findsOneWidget);
-    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Today'), findsNWidgets(3));
     expect(find.text('All tasks'), findsOneWidget);
 
     await tester.tap(find.text('Buy groceries'));
@@ -88,7 +103,7 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('All tasks'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Buy groceries'), findsOneWidget);
     expect(find.text('Write report'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
