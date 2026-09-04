@@ -36,6 +36,7 @@ jobs:
           coverage: none
       - uses: ramsey/composer-install@v3
       - run: cp .env.example .env
+      - run: mkdir -p bootstrap/cache
       - run: touch database/database.sqlite
       - run: php artisan key:generate --force
       - run: php artisan migrate --force
