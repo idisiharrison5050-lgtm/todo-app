@@ -20,7 +20,7 @@ class TaskController extends Controller
     public function deleted(Request $request): JsonResponse
     {
         abort_unless($request->user()->tokenCan('tasks:read'), 403);
-        return response()->json(DB::table('deleted_tasks')->where('user_id', $request->user()->id)->orderBy('deleted_at')->paginate(100, ['client_id', 'deleted_at']));
+        return response()->json(DB::table('deleted_tasks')->where('user_id', $request->user()->id)->orderBy('deleted_at')->paginate(100, ['client_id', 'deleted_at', 'sync_version']));
     }
 
     public function store(Request $request): JsonResponse
@@ -34,17 +34,29 @@ class TaskController extends Controller
             'client_updated_at' => ['nullable', 'date'],
             'sync_version' => ['nullable', 'integer', 'min:1'],
         ]);
+
         $incomingVersion = $validated['sync_version'] ?? null;
         $clientUpdatedAt = $validated['client_updated_at'] ?? $this->clientUpdatedAt($validated['payload']);
         $deleted = DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $validated['client_id'])->first();
         if ($deleted) {
+            if ($incomingVersion !== null && $deleted->sync_version !== null && $incomingVersion <= (int) $deleted->sync_version) {
+                return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true, 'sync_version' => (int) $deleted->sync_version], 409);
+            }
             $incoming = $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now();
-            if ($incoming->lessThanOrEqualTo(Carbon::parse($deleted->deleted_at))) return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true], 409);
+            if ($incoming->lessThanOrEqualTo(Carbon::parse($deleted->deleted_at))) {
+                return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true, 'sync_version' => $deleted->sync_version ? (int) $deleted->sync_version : null], 409);
+            }
             DB::table('deleted_tasks')->where('id', $deleted->id)->delete();
         }
+
         $existing = $request->user()->tasks()->where('client_id', $validated['client_id'])->first();
-        if ($existing && $incomingVersion !== null && $incomingVersion < (int) $existing->sync_version) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($existing->fresh())], 409);
-        if ($existing && $incomingVersion === null && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($existing->fresh())], 409);
+        if ($existing && $incomingVersion !== null && $incomingVersion < (int) $existing->sync_version) {
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($existing->fresh())], 409);
+        }
+        if ($existing && $incomingVersion === null && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($existing->fresh())], 409);
+        }
+
         $nextVersion = $existing ? ((int) $existing->sync_version + 1) : 1;
         $task = $request->user()->tasks()->updateOrCreate(['client_id' => $validated['client_id']], [
             'title' => trim($validated['title']),
@@ -53,6 +65,7 @@ class TaskController extends Controller
             'client_updated_at' => $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now(),
             'sync_version' => $nextVersion,
         ]);
+
         return response()->json(['task' => $this->canonicalTask($task->fresh())], $existing ? 200 : 201);
     }
 
@@ -60,11 +73,21 @@ class TaskController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 404);
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        $validated = $request->validate(['title' => ['sometimes', 'required', 'string', 'max:200'], 'completed' => ['sometimes', 'boolean'], 'payload' => ['sometimes', 'required', 'array'], 'client_updated_at' => ['nullable', 'date'], 'sync_version' => ['nullable', 'integer', 'min:1']]);
+        $validated = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:200'],
+            'completed' => ['sometimes', 'boolean'],
+            'payload' => ['sometimes', 'required', 'array'],
+            'client_updated_at' => ['nullable', 'date'],
+            'sync_version' => ['nullable', 'integer', 'min:1'],
+        ]);
         $incomingVersion = $validated['sync_version'] ?? null;
         $clientUpdatedAt = $validated['client_updated_at'] ?? (isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null);
-        if ($incomingVersion !== null && $incomingVersion < (int) $task->sync_version) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
-        if ($incomingVersion === null && $clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
+        if ($incomingVersion !== null && $incomingVersion < (int) $task->sync_version) {
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
+        }
+        if ($incomingVersion === null && $clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
+            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
+        }
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
         if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
         unset($validated['sync_version']);
@@ -81,7 +104,7 @@ class TaskController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 404);
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        $this->tombstone($request, $task->client_id);
+        $this->tombstone($request, $task->client_id, $task);
         return response()->json(['message' => 'Task deleted.']);
     }
 
@@ -89,15 +112,23 @@ class TaskController extends Controller
     {
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
         $task = $request->user()->tasks()->where('client_id', $clientId)->first();
-        if ($task) $this->tombstone($request, $task->client_id, $task);
-        else DB::table('deleted_tasks')->updateOrInsert(['user_id' => $request->user()->id, 'client_id' => $clientId], ['deleted_at' => now()]);
+        if ($task) {
+            $this->tombstone($request, $task->client_id, $task);
+        } else {
+            $existing = DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $clientId)->first();
+            if (!$existing) DB::table('deleted_tasks')->insert(['user_id' => $request->user()->id, 'client_id' => $clientId, 'deleted_at' => now(), 'sync_version' => 1]);
+        }
         return response()->json(['message' => 'Task deleted.']);
     }
 
     private function tombstone(Request $request, string $clientId, ?Task $task = null): void
     {
         DB::transaction(function () use ($request, $clientId, $task) {
-            DB::table('deleted_tasks')->updateOrInsert(['user_id' => $request->user()->id, 'client_id' => $clientId], ['deleted_at' => now()]);
+            $syncVersion = $task ? ((int) $task->sync_version + 1) : 1;
+            DB::table('deleted_tasks')->updateOrInsert(
+                ['user_id' => $request->user()->id, 'client_id' => $clientId],
+                ['deleted_at' => now(), 'sync_version' => $syncVersion],
+            );
             if ($task) $task->delete();
         });
     }
