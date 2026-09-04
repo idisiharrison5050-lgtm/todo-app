@@ -75,7 +75,7 @@ class TaskStore extends ChangeNotifier {
     final current = _tasks[index];
     final effectiveRepeat = repeat ?? current.repeat;
     final effectiveRepeatIntervalDays = repeatIntervalDays ?? current.repeatIntervalDays;
-    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, effectiveRepeat, effectiveRepeatIntervalDays);
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, effectiveRepeat, effectiveRepeatIntervalDays, allowPastDue: true);
     final changes = <String>[];
     if (current.title != normalizedTitle) changes.add('Title changed');
     if (current.notes != notes.trim()) changes.add('Notes changed');
@@ -112,10 +112,16 @@ class TaskStore extends ChangeNotifier {
     final current = _tasks[index];
     final completing = !current.isCompleted;
     var updated = current.copyWith(isCompleted: completing);
+    var historyAction = completing ? 'Completed' : 'Reopened';
+    var historyDetail = completing ? 'Task completed' : 'Task marked active';
+
     if (completing && current.repeat != TaskRepeat.none && current.dueAt != null) {
       updated = _nextRecurringTask(current);
+      historyAction = 'Completed occurrence';
+      historyDetail = 'Next occurrence: ${_historySchedule(updated.dueAt!)}';
     }
-    updated = _withHistory(updated, completing ? 'Completed' : 'Reopened', completing ? 'Task completed' : 'Task marked active');
+
+    updated = _withHistory(updated, historyAction, historyDetail);
 
     _tasks[index] = updated;
     notifyListeners();
@@ -173,32 +179,37 @@ class TaskStore extends ChangeNotifier {
   Task _withHistory(Task task, String action, String detail) => task.copyWith(history: [...task.history, _history(action, detail)]);
 
   Task _nextRecurringTask(Task task) {
-    final due = task.dueAt!;
-    DateTime next;
-    switch (task.repeat) {
-      case TaskRepeat.daily:
-        next = _addCalendarDays(due, 1);
-        break;
-      case TaskRepeat.weekdays:
-        next = _addCalendarDays(due, 1);
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
-          next = _addCalendarDays(next, 1);
-        }
-        break;
-      case TaskRepeat.weekly:
-        next = _addCalendarDays(due, 7);
-        break;
-      case TaskRepeat.monthly:
-        next = _addCalendarMonthClamped(due, 1);
-        break;
-      case TaskRepeat.custom:
-        next = _addCalendarDays(due, task.repeatIntervalDays ?? 1);
-        break;
-      case TaskRepeat.none:
-        return task.copyWith(isCompleted: true);
+    final originalDue = task.dueAt!;
+    var next = _advanceRecurringDate(task, originalDue);
+    final now = DateTime.now();
+    while (!next.isAfter(now)) {
+      next = _advanceRecurringDate(task, next);
     }
     return task.copyWith(dueAt: next, isCompleted: false);
   }
+
+  DateTime _advanceRecurringDate(Task task, DateTime due) {
+    switch (task.repeat) {
+      case TaskRepeat.daily:
+        return _addCalendarDays(due, 1);
+      case TaskRepeat.weekdays:
+        var next = _addCalendarDays(due, 1);
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+          next = _addCalendarDays(next, 1);
+        }
+        return next;
+      case TaskRepeat.weekly:
+        return _addCalendarDays(due, 7);
+      case TaskRepeat.monthly:
+        return _addCalendarMonthClamped(due, 1);
+      case TaskRepeat.custom:
+        return _addCalendarDays(due, task.repeatIntervalDays ?? 1);
+      case TaskRepeat.none:
+        return due;
+    }
+  }
+
+  String _historySchedule(DateTime value) => '${value.day}/${value.month}/${value.year} at ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
   DateTime _addCalendarDays(DateTime value, int days) => DateTime(value.year, value.month, value.day + days, value.hour, value.minute, value.second);
 
@@ -228,8 +239,8 @@ class TaskStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval, TaskRepeat repeat, int? repeatIntervalDays) {
-    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
+  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval, TaskRepeat repeat, int? repeatIntervalDays, {bool allowPastDue = false}) {
+    if (!allowPastDue && dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
     }
     if (reminderType != TaskReminderType.none && dueAt == null) {
