@@ -117,7 +117,7 @@ class TaskApiTest extends TestCase
         $task = Task::create(['user_id' => $user->id, 'client_id' => 'timestamp-delete-task', 'title' => 'Keep newer task', 'completed' => false, 'payload' => ['id' => 'timestamp-delete-task', 'title' => 'Keep newer task'], 'client_updated_at' => $serverTime, 'sync_version' => 1]);
         Sanctum::actingAs($user, ['tasks:write']);
 
-        $this->deleteJson('/api/v1/tasks/by-client/timestamp-delete-task?client_updated_at='.$serverTime->copy()->subMinute()->toIso8601String())
+        $this->deleteJson('/api/v1/tasks/by-client/timestamp-delete-task', ['client_updated_at' => $serverTime->copy()->subMinute()->toISOString()])
             ->assertStatus(409)
             ->assertJsonPath('task.client_id', 'timestamp-delete-task')
             ->assertJsonPath('task.title', 'Keep newer task');
