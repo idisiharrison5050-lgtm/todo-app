@@ -7,7 +7,6 @@ class AuthStore {
 
   final AuthApi _api;
   final TokenStorage _storage;
-
   AuthUser? _user;
   String? _token;
 
@@ -19,15 +18,12 @@ class AuthStore {
   Future<bool> restore() async {
     _token = await _storage.read();
     if (_token == null || _token!.isEmpty) return false;
-
     final accountId = await _storage.readAccountId();
     if (accountId == null || accountId.isEmpty) {
       try {
         _user = await _api.me(_token!);
         await _storage.writeAccountId(_user!.id);
-      } catch (_) {
-        // Keep the session usable offline; local data remains isolated by the token hash.
-      }
+      } catch (_) {}
     }
     return true;
   }
@@ -36,9 +32,7 @@ class AuthStore {
     final user = await _api.login(email: email, password: password, deviceName: deviceName);
     _user = user;
     _token = user.token;
-    if (_token == null || _token!.isEmpty) {
-      throw StateError('Authentication succeeded without an access token.');
-    }
+    if (_token == null || _token!.isEmpty) throw StateError('Authentication succeeded without an access token.');
     await _storage.write(_token!);
     await _storage.writeAccountId(user.id);
     return user;
@@ -48,21 +42,17 @@ class AuthStore {
     final user = await _api.register(name: name, email: email, password: password, deviceName: deviceName);
     _user = user;
     _token = user.token;
-    if (_token == null || _token!.isEmpty) {
-      throw StateError('Registration succeeded without an access token.');
-    }
+    if (_token == null || _token!.isEmpty) throw StateError('Registration succeeded without an access token.');
     await _storage.write(_token!);
     await _storage.writeAccountId(user.id);
     return user;
   }
 
+  Future<String> requestPasswordReset({required String email}) => _api.requestPasswordReset(email: email);
+
   Future<void> logout() async {
     final token = _token;
-    try {
-      if (token != null) await _api.logout(token);
-    } catch (_) {
-      // Local logout must still succeed when the server is unreachable.
-    } finally {
+    try { if (token != null) await _api.logout(token); } catch (_) {} finally {
       await _storage.clear();
       _token = null;
       _user = null;
