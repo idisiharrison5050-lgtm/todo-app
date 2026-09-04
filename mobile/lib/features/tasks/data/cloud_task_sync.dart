@@ -126,12 +126,15 @@ class CloudTaskSync {
     if (token == null || token.isEmpty) return;
 
     final queryParameters = <String, dynamic>{
-      if (syncVersion != null) 'sync_version': syncVersion,
+      ...?(syncVersion == null
+          ? null
+          : <String, dynamic>{'sync_version': syncVersion}),
+      ...?(clientUpdatedAt == null
+          ? null
+          : <String, dynamic>{
+              'client_updated_at': clientUpdatedAt.toIso8601String(),
+            }),
     };
-    final timestamp = clientUpdatedAt?.toIso8601String();
-    if (timestamp != null) {
-      queryParameters['client_updated_at'] = timestamp;
-    }
 
     await _dio.delete(
       '/tasks/by-client/${Uri.encodeComponent(id)}',
