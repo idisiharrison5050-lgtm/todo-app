@@ -68,4 +68,24 @@ class TaskApiTest extends TestCase
         $this->getJson('/api/v1/tasks/deleted')->assertOk()->assertJsonPath('data.0.client_id', 'deleted-task')->assertJsonPath('data.0.sync_version', 4);
         $this->postJson('/api/v1/tasks', ['client_id' => 'deleted-task', 'title' => 'Old offline copy', 'completed' => false, 'payload' => ['id' => 'deleted-task', 'title' => 'Old offline copy', 'updatedAt' => $createdAt->toIso8601String()], 'client_updated_at' => $createdAt->toIso8601String(), 'sync_version' => 3])->assertStatus(409)->assertJsonPath('deleted', true)->assertJsonPath('sync_version', 4);
     }
+
+    public function test_successful_mutation_is_replayed_for_the_same_idempotency_key(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user, ['tasks:write']);
+        $payload = ['client_id' => 'idempotent-task', 'title' => 'Exactly once', 'completed' => false, 'payload' => ['id' => 'idempotent-task', 'title' => 'Exactly once']];
+        $this->withHeader('Idempotency-Key', 'operation-001')->postJson('/api/v1/tasks', $payload)->assertCreated();
+        $this->withHeader('Idempotency-Key', 'operation-001')->postJson('/api/v1/tasks', $payload)->assertCreated()->assertJsonPath('task.client_id', 'idempotent-task');
+        $this->assertDatabaseCount('tasks', 1);
+        $this->assertDatabaseCount('sync_operations', 1);
+    }
+
+    public function test_reusing_an_idempotency_key_for_a_different_request_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user, ['tasks:write']);
+        $this->withHeader('Idempotency-Key', 'operation-002')->postJson('/api/v1/tasks', ['client_id' => 'task-a', 'title' => 'First', 'completed' => false, 'payload' => ['id' => 'task-a']])->assertCreated();
+        $this->withHeader('Idempotency-Key', 'operation-002')->postJson('/api/v1/tasks', ['client_id' => 'task-b', 'title' => 'Second', 'completed' => false, 'payload' => ['id' => 'task-b']])->assertStatus(409);
+        $this->assertDatabaseCount('tasks', 1);
+    }
 }
