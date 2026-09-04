@@ -57,6 +57,30 @@ class TaskApiTest extends TestCase
         $this->postJson('/api/v1/tasks', ['client_id' => 'version-task', 'title' => 'Stale client', 'completed' => false, 'payload' => ['id' => 'version-task', 'title' => 'Stale client', 'updatedAt' => now()->addYear()->toIso8601String()], 'sync_version' => 3])->assertStatus(409)->assertJsonPath('task.sync_version', 4)->assertJsonPath('task.title', 'New server data');
     }
 
+    public function test_equal_sync_version_is_only_accepted_once_and_next_replay_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $time = Carbon::parse('2026-09-04T09:00:00Z');
+        Task::create(['user_id' => $user->id, 'client_id' => 'cas-task', 'title' => 'Base', 'completed' => false, 'payload' => ['id' => 'cas-task', 'title' => 'Base'], 'client_updated_at' => $time, 'sync_version' => 1]);
+        Sanctum::actingAs($user, ['tasks:write']);
+
+        $this->postJson('/api/v1/tasks', ['client_id' => 'cas-task', 'title' => 'First writer', 'completed' => false, 'payload' => ['id' => 'cas-task', 'title' => 'First writer'], 'client_updated_at' => $time->copy()->addMinute()->toIso8601String(), 'sync_version' => 1])->assertOk()->assertJsonPath('task.sync_version', 2)->assertJsonPath('task.title', 'First writer');
+
+        $this->postJson('/api/v1/tasks', ['client_id' => 'cas-task', 'title' => 'Second stale writer', 'completed' => false, 'payload' => ['id' => 'cas-task', 'title' => 'Second stale writer'], 'client_updated_at' => $time->copy()->addMinutes(2)->toIso8601String(), 'sync_version' => 1])->assertStatus(409)->assertJsonPath('task.sync_version', 2)->assertJsonPath('task.title', 'First writer');
+    }
+
+    public function test_update_rechecks_the_server_version_inside_the_transaction(): void
+    {
+        $user = User::factory()->create();
+        $time = Carbon::parse('2026-09-04T10:00:00Z');
+        $task = Task::create(['user_id' => $user->id, 'client_id' => 'update-cas-task', 'title' => 'Base', 'completed' => false, 'payload' => ['id' => 'update-cas-task', 'title' => 'Base'], 'client_updated_at' => $time, 'sync_version' => 2]);
+        Sanctum::actingAs($user, ['tasks:write']);
+
+        $this->patchJson('/api/v1/tasks/'.$task->id, ['title' => 'First update', 'payload' => ['id' => 'update-cas-task', 'title' => 'First update'], 'client_updated_at' => $time->copy()->addMinute()->toIso8601String(), 'sync_version' => 2])->assertOk()->assertJsonPath('task.sync_version', 3);
+
+        $this->patchJson('/api/v1/tasks/'.$task->id, ['title' => 'Stale update', 'payload' => ['id' => 'update-cas-task', 'title' => 'Stale update'], 'client_updated_at' => $time->copy()->addMinutes(2)->toIso8601String(), 'sync_version' => 2])->assertStatus(409)->assertJsonPath('task.sync_version', 3)->assertJsonPath('task.title', 'First update');
+    }
+
     public function test_deleting_by_client_id_creates_a_tombstone_and_blocks_stale_recreation(): void
     {
         $user = User::factory()->create(); $createdAt = Carbon::parse('2026-09-04T07:00:00Z');
