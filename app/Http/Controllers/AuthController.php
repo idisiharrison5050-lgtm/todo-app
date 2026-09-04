@@ -24,6 +24,20 @@ class AuthController extends Controller
         return view('auth.register');
     }
 
+    public function showForgotPassword(): View
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendResetLink(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        $email = strtolower(trim($validated['email']));
+        $user = User::where('email', $email)->first();
+        if ($user) Password::sendResetLink(['email' => $email]);
+        return back()->with('status', 'If an account exists for that email, a password reset link has been sent.');
+    }
+
     public function showResetPassword(Request $request): View
     {
         return view('auth.reset-password', [
