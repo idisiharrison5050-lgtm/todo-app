@@ -10,6 +10,10 @@ class ApiHealthTest extends TestCase
     {
         $this->getJson('/api/v1/health')
             ->assertOk()
-            ->assertJson(['status' => 'ok']);
+            ->assertJson(['status' => 'ok'])
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('X-Frame-Options', 'DENY')
+            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+            ->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     }
 }
