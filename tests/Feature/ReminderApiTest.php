@@ -49,4 +49,28 @@ class ReminderApiTest extends TestCase
         Sanctum::actingAs($user, ['tasks:read']);
         $this->postJson('/api/v1/reminders', ['task_id' => $task->id, 'timezone' => 'Africa/Lagos', 'type' => 'once', 'starts_at' => now('Africa/Lagos')->addHour()->toIso8601String()])->assertForbidden();
     }
+
+    public function test_successful_reminder_creation_is_replayed_for_the_same_idempotency_key(): void
+    {
+        $user = User::factory()->create();
+        $task = Task::create(['user_id' => $user->id, 'title' => 'Idempotent reminder', 'completed' => false]);
+        Sanctum::actingAs($user, ['tasks:write']);
+        $payload = ['task_id' => $task->id, 'timezone' => 'Africa/Lagos', 'type' => 'daily', 'starts_at' => now('Africa/Lagos')->addHour()->toIso8601String(), 'hour' => 14, 'minute' => 0, 'snooze_minutes' => 10, 'enabled' => true];
+        $this->withHeader('Idempotency-Key', 'reminder-operation-001')->postJson('/api/v1/reminders', $payload)->assertCreated();
+        $this->withHeader('Idempotency-Key', 'reminder-operation-001')->postJson('/api/v1/reminders', $payload)->assertCreated();
+        $this->assertDatabaseCount('reminders', 1);
+        $this->assertDatabaseCount('sync_operations', 1);
+    }
+
+    public function test_reminder_idempotency_key_cannot_be_reused_for_a_different_mutation(): void
+    {
+        $user = User::factory()->create();
+        $task = Task::create(['user_id' => $user->id, 'title' => 'Reminder task', 'completed' => false]);
+        Sanctum::actingAs($user, ['tasks:write']);
+        $base = ['task_id' => $task->id, 'timezone' => 'Africa/Lagos', 'type' => 'daily', 'starts_at' => now('Africa/Lagos')->addHour()->toIso8601String(), 'hour' => 14, 'minute' => 0];
+        $this->withHeader('Idempotency-Key', 'reminder-operation-002')->postJson('/api/v1/reminders', $base)->assertCreated();
+        $changed = array_merge($base, ['hour' => 15]);
+        $this->withHeader('Idempotency-Key', 'reminder-operation-002')->postJson('/api/v1/reminders', $changed)->assertStatus(409);
+        $this->assertDatabaseCount('reminders', 1);
+    }
 }
