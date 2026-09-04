@@ -112,4 +112,18 @@ class TaskApiTest extends TestCase
         $this->withHeader('Idempotency-Key', 'operation-002')->postJson('/api/v1/tasks', ['client_id' => 'task-b', 'title' => 'Second', 'completed' => false, 'payload' => ['id' => 'task-b']])->assertStatus(409);
         $this->assertDatabaseCount('tasks', 1);
     }
+
+    public function test_overlong_idempotency_key_is_rejected_before_mutation(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user, ['tasks:write']);
+
+        $this->withHeader('Idempotency-Key', str_repeat('x', 101))
+            ->postJson('/api/v1/tasks', ['client_id' => 'too-long-key', 'title' => 'Should not be created', 'completed' => false, 'payload' => ['id' => 'too-long-key']])
+            ->assertStatus(422)
+            ->assertJson(['message' => 'The Idempotency-Key header is too long.']);
+
+        $this->assertDatabaseCount('tasks', 0);
+        $this->assertDatabaseCount('sync_operations', 0);
+    }
 }
