@@ -57,7 +57,7 @@ class TaskStore extends ChangeNotifier {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, repeat, repeatIntervalDays);
     final now = DateTime.now();
     final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: _currentTimeZone(), priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
     await _repository.saveTask(task);
@@ -72,8 +72,10 @@ class TaskStore extends ChangeNotifier {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
     final current = _tasks[index];
+    final effectiveRepeat = repeat ?? current.repeat;
+    final effectiveRepeatIntervalDays = repeatIntervalDays ?? current.repeatIntervalDays;
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, effectiveRepeat, effectiveRepeatIntervalDays);
     final changes = <String>[];
     if (current.title != normalizedTitle) changes.add('Title changed');
     if (current.notes != notes.trim()) changes.add('Notes changed');
@@ -226,7 +228,7 @@ class TaskStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
+  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval, TaskRepeat repeat, int? repeatIntervalDays) {
     if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
     }
@@ -235,6 +237,12 @@ class TaskStore extends ChangeNotifier {
     }
     if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
       throw ArgumentError('A repeating reminder must have a valid interval.');
+    }
+    if (repeat != TaskRepeat.none && dueAt == null) {
+      throw ArgumentError('A recurring task requires a due date and time.');
+    }
+    if (repeat == TaskRepeat.custom && (repeatIntervalDays == null || repeatIntervalDays <= 0)) {
+      throw ArgumentError('A custom recurrence must have a valid interval in days.');
     }
   }
 
@@ -265,7 +273,7 @@ class TaskStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    unawaited(_connectivitySyncManager?.dispose());
+    _connectivitySyncManager?.dispose();
     unawaited(_repository.close());
     super.dispose();
   }
