@@ -45,7 +45,7 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
     return ReminderSchedule(
       taskId: task.id,
       title: task.title,
-      fireAt: fireAt,
+      fireAt: _asDateTime(fireAt),
       timeZone: location.name,
     );
   }
@@ -63,7 +63,7 @@ ReminderSchedule? buildReminderSchedule(Task task, {DateTime? now}) {
   return ReminderSchedule(
     taskId: task.id,
     title: task.title,
-    fireAt: fireAt,
+    fireAt: _asDateTime(fireAt),
     timeZone: location.name,
     repeatInterval: interval,
   );
@@ -78,3 +78,5 @@ tz.Location _safeLocation(String name) {
 }
 
 tz.TZDateTime _wallClockInZone(DateTime value, tz.Location location) => tz.TZDateTime(location, value.year, value.month, value.day, value.hour, value.minute, value.second);
+
+DateTime _asDateTime(tz.TZDateTime value) => DateTime.fromMillisecondsSinceEpoch(value.millisecondsSinceEpoch);
