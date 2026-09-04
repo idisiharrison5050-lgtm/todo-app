@@ -14,6 +14,13 @@ class LocalNotificationService {
   /// Set by the app so tapping a notification can open its task.
   static void Function(String taskId)? onNotificationTap;
 
+  /// Set by the reminder scheduler so notification actions can snooze a task.
+  static void Function(String taskId, int minutes)? onSnoozeRequested;
+
+  static const String snooze5Action = 'snooze_5';
+  static const String snooze10Action = 'snooze_10';
+  static const String snooze30Action = 'snooze_30';
+
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
     tz.initializeTimeZones();
@@ -23,14 +30,36 @@ class LocalNotificationService {
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
+      notificationCategories: <DarwinNotificationCategory>[
+        DarwinNotificationCategory(
+          'todo_reminder',
+          actions: <DarwinNotificationAction>[
+            DarwinNotificationAction.plain(snooze5Action, '5 min'),
+            DarwinNotificationAction.plain(snooze10Action, '10 min'),
+            DarwinNotificationAction.plain(snooze30Action, '30 min'),
+          ],
+        ),
+      ],
     );
 
     await _plugin.initialize(
       settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
       onDidReceiveNotificationResponse: (response) {
         final taskId = response.payload;
-        if (taskId != null && taskId.isNotEmpty) {
-          onNotificationTap?.call(taskId);
+        if (taskId == null || taskId.isEmpty) return;
+
+        switch (response.actionId) {
+          case snooze5Action:
+            onSnoozeRequested?.call(taskId, 5);
+            return;
+          case snooze10Action:
+            onSnoozeRequested?.call(taskId, 10);
+            return;
+          case snooze30Action:
+            onSnoozeRequested?.call(taskId, 30);
+            return;
+          default:
+            onNotificationTap?.call(taskId);
         }
       },
     );
@@ -67,6 +96,7 @@ class LocalNotificationService {
     required String body,
     required DateTime scheduledAt,
     String? payload,
+    bool includeSnoozeActions = true,
   }) async {
     await initialize();
     if (kIsWeb) return;
@@ -80,7 +110,7 @@ class LocalNotificationService {
       title: title,
       body: body,
       scheduledDate: scheduled,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'todo_reminders',
           'Task reminders',
@@ -91,8 +121,15 @@ class LocalNotificationService {
           enableVibration: true,
           category: AndroidNotificationCategory.reminder,
           visibility: NotificationVisibility.public,
+          actions: includeSnoozeActions
+              ? <AndroidNotificationAction>[
+                  const AndroidNotificationAction(snooze5Action, '5 min', showsUserInterface: true),
+                  const AndroidNotificationAction(snooze10Action, '10 min', showsUserInterface: true),
+                  const AndroidNotificationAction(snooze30Action, '30 min', showsUserInterface: true),
+                ]
+              : const <AndroidNotificationAction>[],
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
       ),
       payload: payload,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
