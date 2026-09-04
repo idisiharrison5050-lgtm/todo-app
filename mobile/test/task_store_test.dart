@@ -155,6 +155,42 @@ void main() {
     store.dispose();
   });
 
+  test('allows editing an overdue task without moving its schedule', () async {
+    final repository = MemoryTaskRepository();
+    final overdue = Task(
+      id: 'overdue-1',
+      title: 'Old title',
+      dueAt: DateTime(2026, 9, 1, 9, 15),
+      createdAt: DateTime(2026, 8, 31),
+    );
+    await repository.saveTask(overdue);
+    final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
+    await store.load();
+    await store.updateTask(overdue.id, title: 'Updated overdue task', dueAt: overdue.dueAt);
+    expect(store.tasks.single.title, 'Updated overdue task');
+    expect(store.tasks.single.dueAt, overdue.dueAt);
+    store.dispose();
+  });
+
+  test('catches up a missed daily recurrence to the next future occurrence', () async {
+    final repository = MemoryTaskRepository();
+    final overdue = Task(
+      id: 'recurring-overdue-1',
+      title: 'Daily catch-up',
+      dueAt: DateTime.now().subtract(const Duration(days: 3)),
+      repeat: TaskRepeat.daily,
+      createdAt: DateTime.now().subtract(const Duration(days: 4)),
+    );
+    await repository.saveTask(overdue);
+    final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
+    await store.load();
+    await store.toggleCompleted(overdue.id);
+    expect(store.tasks.single.isCompleted, isFalse);
+    expect(store.tasks.single.dueAt!.isAfter(DateTime.now()), isTrue);
+    expect(store.tasks.single.history.last.action, 'Completed occurrence');
+    store.dispose();
+  });
+
   test('manages subtasks and records history', () async {
     final repository = MemoryTaskRepository(); final store = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
     await store.addTask(title: 'Project plan');
