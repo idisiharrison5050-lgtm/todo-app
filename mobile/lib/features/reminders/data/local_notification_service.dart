@@ -8,25 +8,18 @@ import 'package:timezone/timezone.dart' as tz;
 /// Handles notification actions when Android/iOS wakes a background isolate.
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) {
-  if (response.actionId == LocalNotificationService.snooze5Action ||
-      response.actionId == LocalNotificationService.snooze10Action ||
-      response.actionId == LocalNotificationService.snooze30Action) {
+  if (response.actionId == LocalNotificationService.snooze5Action || response.actionId == LocalNotificationService.snooze10Action || response.actionId == LocalNotificationService.snooze30Action) {
     unawaited(LocalNotificationService.scheduleSnoozeFromBackground(response));
   }
 }
 
-/// OS-level notification adapter for task reminders.
 class LocalNotificationService {
-  LocalNotificationService({FlutterLocalNotificationsPlugin? plugin})
-      : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  LocalNotificationService({FlutterLocalNotificationsPlugin? plugin}) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   bool _initialized = false;
 
-  /// Set by the app so tapping a notification can open its task.
   static void Function(String taskId)? onNotificationTap;
-
-  /// Set by the reminder scheduler so notification actions can snooze a task.
   static void Function(String taskId, int minutes)? onSnoozeRequested;
 
   static const String snooze5Action = 'snooze_5';
@@ -56,8 +49,6 @@ class LocalNotificationService {
     }
   }
 
-  /// Schedules the snoozed notification directly from the background isolate.
-  /// This does not depend on the app's TaskStore or ReminderScheduler being alive.
   @pragma('vm:entry-point')
   static Future<void> scheduleSnoozeFromBackground(NotificationResponse response) async {
     final taskId = response.payload;
@@ -66,8 +57,11 @@ class LocalNotificationService {
 
     tz.initializeTimeZones();
     final plugin = FlutterLocalNotificationsPlugin();
-    final scheduled = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
+    await plugin.initialize(settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
+    final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(const AndroidNotificationChannel('todo_reminders', 'Task reminders', description: 'Reminders for scheduled tasks', importance: Importance.high));
 
+    final scheduled = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
     await plugin.cancel(id: _snoozeNotificationId(taskId));
     await plugin.zonedSchedule(
       id: _snoozeNotificationId(taskId),
@@ -75,22 +69,7 @@ class LocalNotificationService {
       body: 'Snoozed reminder.',
       scheduledDate: scheduled,
       notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'todo_reminders',
-          'Task reminders',
-          channelDescription: 'Reminders for scheduled tasks',
-          importance: Importance.max,
-          priority: Priority.max,
-          playSound: true,
-          enableVibration: true,
-          category: AndroidNotificationCategory.reminder,
-          visibility: NotificationVisibility.public,
-          actions: <AndroidNotificationAction>[
-            AndroidNotificationAction(snooze5Action, '5 min'),
-            AndroidNotificationAction(snooze10Action, '10 min'),
-            AndroidNotificationAction(snooze30Action, '30 min'),
-          ],
-        ),
+        android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: <AndroidNotificationAction>[AndroidNotificationAction(snooze5Action, '5 min'), AndroidNotificationAction(snooze10Action, '10 min'), AndroidNotificationAction(snooze30Action, '30 min')]),
         iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
       ),
       payload: taskId,
@@ -101,30 +80,15 @@ class LocalNotificationService {
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
     tz.initializeTimeZones();
-
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final darwin = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-      notificationCategories: <DarwinNotificationCategory>[
-        DarwinNotificationCategory(
-          'todo_reminder',
-          actions: <DarwinNotificationAction>[
-            DarwinNotificationAction.plain(snooze5Action, '5 min'),
-            DarwinNotificationAction.plain(snooze10Action, '10 min'),
-            DarwinNotificationAction.plain(snooze30Action, '30 min'),
-          ],
-        ),
-      ],
-    );
-
+    final darwin = DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false, notificationCategories: <DarwinNotificationCategory>[
+      DarwinNotificationCategory('todo_reminder', actions: <DarwinNotificationAction>[DarwinNotificationAction.plain(snooze5Action, '5 min'), DarwinNotificationAction.plain(snooze10Action, '10 min'), DarwinNotificationAction.plain(snooze30Action, '30 min')]),
+    ]);
     await _plugin.initialize(
       settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
       onDidReceiveNotificationResponse: (response) {
         final taskId = response.payload;
         if (taskId == null || taskId.isEmpty) return;
-
         switch (response.actionId) {
           case snooze5Action:
             onSnoozeRequested?.call(taskId, 5);
@@ -141,72 +105,35 @@ class LocalNotificationService {
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
-
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'todo_reminders',
-        'Task reminders',
-        description: 'Reminders for scheduled tasks',
-        importance: Importance.high,
-      ),
-    );
+    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel('todo_reminders', 'Task reminders', description: 'Reminders for scheduled tasks', importance: Importance.high));
     _initialized = true;
   }
 
   Future<bool> requestPermissions() async {
     if (kIsWeb) return false;
     await initialize();
-
     final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final androidGranted = await android?.requestNotificationsPermission();
     await android?.requestExactAlarmsPermission();
-
     final ios = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
     final iosGranted = await ios?.requestPermissions(alert: true, badge: true, sound: true);
-
     return (androidGranted ?? false) || (iosGranted ?? false);
   }
 
-  Future<void> scheduleOneTime({
-    required int id,
-    required String title,
-    required String body,
-    required DateTime scheduledAt,
-    String? payload,
-    bool includeSnoozeActions = true,
-  }) async {
+  Future<void> scheduleOneTime({required int id, required String title, required String body, required DateTime scheduledAt, String? payload, bool includeSnoozeActions = true}) async {
     await initialize();
     if (kIsWeb) return;
-
     final minute = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day, scheduledAt.hour, scheduledAt.minute);
     final scheduled = tz.TZDateTime.from(minute, tz.local);
     if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
-
     await _plugin.zonedSchedule(
       id: id,
       title: title,
       body: body,
       scheduledDate: scheduled,
       notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'todo_reminders',
-          'Task reminders',
-          channelDescription: 'Reminders for scheduled tasks',
-          importance: Importance.max,
-          priority: Priority.max,
-          playSound: true,
-          enableVibration: true,
-          category: AndroidNotificationCategory.reminder,
-          visibility: NotificationVisibility.public,
-          actions: includeSnoozeActions
-              ? <AndroidNotificationAction>[
-                  const AndroidNotificationAction(snooze5Action, '5 min'),
-                  const AndroidNotificationAction(snooze10Action, '10 min'),
-                  const AndroidNotificationAction(snooze30Action, '30 min'),
-                ]
-              : const <AndroidNotificationAction>[],
-        ),
+        android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: includeSnoozeActions ? <AndroidNotificationAction>[const AndroidNotificationAction(snooze5Action, '5 min'), const AndroidNotificationAction(snooze10Action, '10 min'), const AndroidNotificationAction(snooze30Action, '30 min')] : const <AndroidNotificationAction>[]),
         iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'),
       ),
       payload: payload,
