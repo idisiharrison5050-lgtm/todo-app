@@ -10,6 +10,7 @@ class FakeReminderScheduler implements ReminderScheduler {
   final List<String> cancelled = <String>[];
   @override Future<bool> requestPermission() async => true;
   @override Future<void> schedule(Task task) async => scheduled.add(task.id);
+  @override Future<void> snooze(Task task, int minutes) async {}
   @override Future<void> cancel(String taskId) async => cancelled.add(taskId);
   @override Future<void> cancelAll() async {}
 }
