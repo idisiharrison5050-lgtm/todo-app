@@ -20,12 +20,7 @@ class TaskController extends Controller
     public function deleted(Request $request): JsonResponse
     {
         abort_unless($request->user()->tokenCan('tasks:read'), 403);
-        return response()->json([
-            'data' => DB::table('deleted_tasks')
-                ->where('user_id', $request->user()->id)
-                ->orderBy('deleted_at')
-                ->get(['client_id', 'deleted_at']),
-        ]);
+        return response()->json(['data' => DB::table('deleted_tasks')->where('user_id', $request->user()->id)->orderBy('deleted_at')->get(['client_id', 'deleted_at'])]);
     }
 
     public function store(Request $request): JsonResponse
@@ -38,40 +33,21 @@ class TaskController extends Controller
             'payload' => ['required', 'array'],
             'client_updated_at' => ['nullable', 'date'],
         ]);
-
         $clientUpdatedAt = $validated['client_updated_at'] ?? $this->clientUpdatedAt($validated['payload']);
-        $deleted = DB::table('deleted_tasks')
-            ->where('user_id', $request->user()->id)
-            ->where('client_id', $validated['client_id'])
-            ->first();
-
+        $deleted = DB::table('deleted_tasks')->where('user_id', $request->user()->id)->where('client_id', $validated['client_id'])->first();
         if ($deleted) {
             $incoming = $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now();
-            if ($incoming->lessThanOrEqualTo(Carbon::parse($deleted->deleted_at))) {
-                return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true], 409);
-            }
+            if ($incoming->lessThanOrEqualTo(Carbon::parse($deleted->deleted_at))) return response()->json(['message' => 'This task was deleted on the server.', 'deleted' => true], 409);
             DB::table('deleted_tasks')->where('id', $deleted->id)->delete();
         }
-
         $existing = $request->user()->tasks()->where('client_id', $validated['client_id'])->first();
-
-        if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
-            return response()->json([
-                'message' => 'Server has a newer version of this task.',
-                'task' => $this->canonicalTask($existing->fresh()),
-            ], 409);
-        }
-
-        $task = $request->user()->tasks()->updateOrCreate(
-            ['client_id' => $validated['client_id']],
-            [
-                'title' => trim($validated['title']),
-                'completed' => $validated['completed'] ?? false,
-                'payload' => $validated['payload'],
-                'client_updated_at' => $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now(),
-            ]
-        );
-
+        if ($existing && $existing->client_updated_at && $clientUpdatedAt && $existing->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($existing->fresh())], 409);
+        $task = $request->user()->tasks()->updateOrCreate(['client_id' => $validated['client_id']], [
+            'title' => trim($validated['title']),
+            'completed' => $validated['completed'] ?? false,
+            'payload' => $validated['payload'],
+            'client_updated_at' => $clientUpdatedAt ? Carbon::parse($clientUpdatedAt) : now(),
+        ]);
         return response()->json(['task' => $this->canonicalTask($task->fresh())], $existing ? 200 : 201);
     }
 
@@ -79,16 +55,9 @@ class TaskController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 404);
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        $validated = $request->validate([
-            'title' => ['sometimes', 'required', 'string', 'max:200'],
-            'completed' => ['sometimes', 'boolean'],
-            'payload' => ['sometimes', 'required', 'array'],
-            'client_updated_at' => ['nullable', 'date'],
-        ]);
+        $validated = $request->validate(['title' => ['sometimes', 'required', 'string', 'max:200'], 'completed' => ['sometimes', 'boolean'], 'payload' => ['sometimes', 'required', 'array'], 'client_updated_at' => ['nullable', 'date']]);
         $clientUpdatedAt = $validated['client_updated_at'] ?? (isset($validated['payload']) ? $this->clientUpdatedAt($validated['payload']) : null);
-        if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) {
-            return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
-        }
+        if ($clientUpdatedAt && $task->client_updated_at && $task->client_updated_at->greaterThan(Carbon::parse($clientUpdatedAt))) return response()->json(['message' => 'Server has a newer version of this task.', 'task' => $this->canonicalTask($task->fresh())], 409);
         if (isset($validated['title'])) $validated['title'] = trim($validated['title']);
         if ($clientUpdatedAt) $validated['client_updated_at'] = Carbon::parse($clientUpdatedAt);
         if (isset($validated['payload'])) {
@@ -103,14 +72,25 @@ class TaskController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 404);
         abort_unless($request->user()->tokenCan('tasks:write'), 403);
-        DB::transaction(function () use ($request, $task) {
-            DB::table('deleted_tasks')->updateOrInsert(
-                ['user_id' => $request->user()->id, 'client_id' => $task->client_id],
-                ['deleted_at' => now()]
-            );
-            $task->delete();
-        });
+        $this->tombstone($request, $task->client_id);
         return response()->json(['message' => 'Task deleted.']);
+    }
+
+    public function destroyByClientId(Request $request, string $clientId): JsonResponse
+    {
+        abort_unless($request->user()->tokenCan('tasks:write'), 403);
+        $task = $request->user()->tasks()->where('client_id', $clientId)->first();
+        if ($task) $this->tombstone($request, $task->client_id, $task);
+        else DB::table('deleted_tasks')->updateOrInsert(['user_id' => $request->user()->id, 'client_id' => $clientId], ['deleted_at' => now()]);
+        return response()->json(['message' => 'Task deleted.']);
+    }
+
+    private function tombstone(Request $request, string $clientId, ?Task $task = null): void
+    {
+        DB::transaction(function () use ($request, $clientId, $task) {
+            DB::table('deleted_tasks')->updateOrInsert(['user_id' => $request->user()->id, 'client_id' => $clientId], ['deleted_at' => now()]);
+            if ($task) $task->delete();
+        });
     }
 
     private function clientUpdatedAt(array $payload): ?Carbon
