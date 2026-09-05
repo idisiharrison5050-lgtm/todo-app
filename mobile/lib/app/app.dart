@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'theme/app_theme.dart';
 import '../features/auth/application/auth_store.dart';
 import '../features/auth/presentation/auth_page.dart';
@@ -21,6 +23,7 @@ class _TodoAppState extends State<TodoApp> {
   late Future<void> _loadFuture;
   final _navigatorKey = GlobalKey<NavigatorState>();
   String? _pendingNotificationTaskId;
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -33,10 +36,29 @@ class _TodoAppState extends State<TodoApp> {
   }
 
   Future<void> _initialize() async {
+    final preferences = await SharedPreferences.getInstance();
+    _themeMode = _themeModeFromName(preferences.getString('theme_mode'));
     await _authStore.restore();
     await _taskStore.load();
     _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
     if (_authStore.isAuthenticated && _pendingNotificationTaskId != null) _openPendingNotification();
+  }
+
+  ThemeMode _themeModeFromName(String? value) {
+    switch (value) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('theme_mode', mode.name);
   }
 
   void _openPendingNotification() {
@@ -82,7 +104,7 @@ class _TodoAppState extends State<TodoApp> {
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light,
     darkTheme: AppTheme.dark,
-    themeMode: ThemeMode.system,
+    themeMode: _themeMode,
     themeAnimationDuration: const Duration(milliseconds: 350),
     themeAnimationCurve: Curves.easeOutCubic,
     home: FutureBuilder<void>(
@@ -91,7 +113,14 @@ class _TodoAppState extends State<TodoApp> {
         if (snapshot.connectionState != ConnectionState.done) return const _Loading();
         if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
         if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-        return PremiumWorkspacePage(store: _taskStore, onLogout: _logout);
+        return PremiumWorkspacePage(
+          store: _taskStore,
+          authStore: _authStore,
+          notifications: _notifications,
+          themeMode: _themeMode,
+          onThemeModeChanged: _setThemeMode,
+          onLogout: _logout,
+        );
       },
     ),
   );
