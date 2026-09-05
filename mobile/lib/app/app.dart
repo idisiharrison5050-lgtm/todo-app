@@ -136,7 +136,12 @@ class _TodoAppState extends State<TodoApp> {
           startPage: _startPage,
           onThemeModeChanged: _setThemeMode,
           onStartPageChanged: _setStartPage,
-          child: PremiumWorkspacePage(key: ValueKey('workspace-$_startPage'), store: _taskStore, onLogout: _logout),
+          child: PremiumWorkspacePage(
+            key: ValueKey('workspace-$_startPage'),
+            store: _taskStore,
+            onLogout: _logout,
+            initialIndex: _startPage,
+          ),
         );
       },
     ),
