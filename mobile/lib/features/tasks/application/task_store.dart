@@ -64,6 +64,10 @@ class TaskStore extends ChangeNotifier {
     _tasks.add(task);
     notifyListeners();
     await _syncReminderSafely(task);
+    // The save notification above updates the data immediately. Notify again
+    // after reminder synchronization so routes that are being revealed after
+    // the save (such as the Today workspace) render the latest task at once.
+    notifyListeners();
   }
 
   Future<void> updateTask(String id, {required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal, TaskRepeat? repeat, int? repeatIntervalDays, bool? isFavorite, String? category, List<String>? tags}) async {
@@ -93,6 +97,7 @@ class TaskStore extends ChangeNotifier {
     _tasks[index] = updated;
     notifyListeners();
     await _syncReminderSafely(updated);
+    notifyListeners();
   }
 
   Future<void> toggleFavorite(String id) async {
