@@ -147,13 +147,6 @@ class _ClockRefreshState extends State<_ClockRefresh> {
   Widget build(BuildContext context) => widget.child;
 }
 
-class _PremiumScrollBehavior extends MaterialScrollBehavior {
-  const _PremiumScrollBehavior();
-
-  @override
-  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
-}
-
 class _Loading extends StatefulWidget {
   const _Loading();
   @override State<_Loading> createState() => _LoadingState();
