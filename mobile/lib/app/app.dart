@@ -25,6 +25,7 @@ class _TodoAppState extends State<TodoApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   String? _pendingNotificationTaskId;
   ThemeMode _themeMode = ThemeMode.system;
+  int _startPage = 0;
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _TodoAppState extends State<TodoApp> {
   Future<void> _initialize() async {
     final preferences = await SharedPreferences.getInstance();
     _themeMode = _themeModeFromName(preferences.getString('theme_mode'));
+    _startPage = _startPageFromName(preferences.getString('start_page'));
     await _authStore.restore();
     await _taskStore.load();
     _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
@@ -53,10 +55,28 @@ class _TodoAppState extends State<TodoApp> {
     }
   }
 
+  int _startPageFromName(String? value) {
+    switch (value) {
+      case 'calendar': return 1;
+      case 'focus': return 2;
+      case 'search': return 3;
+      case 'today':
+      default: return 0;
+    }
+  }
+
   Future<void> _setThemeMode(ThemeMode mode) async {
     if (mounted) setState(() => _themeMode = mode);
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString('theme_mode', mode.name);
+  }
+
+  Future<void> _setStartPage(int index) async {
+    if (index < 0 || index > 3) return;
+    if (mounted) setState(() => _startPage = index);
+    final preferences = await SharedPreferences.getInstance();
+    const names = ['today', 'calendar', 'focus', 'search'];
+    await preferences.setString('start_page', names[index]);
   }
 
   void _openPendingNotification() {
@@ -113,8 +133,10 @@ class _TodoAppState extends State<TodoApp> {
           authStore: _authStore,
           notifications: _notifications,
           themeMode: _themeMode,
+          startPage: _startPage,
           onThemeModeChanged: _setThemeMode,
-          child: PremiumWorkspacePage(store: _taskStore, onLogout: _logout),
+          onStartPageChanged: _setStartPage,
+          child: PremiumWorkspacePage(store: _taskStore, initialIndex: _startPage, onLogout: _logout),
         );
       },
     ),
