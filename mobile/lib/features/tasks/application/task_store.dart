@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:uuid/uuid.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -59,7 +60,8 @@ class TaskStore extends ChangeNotifier {
     final normalizedDueAt = _normalizeDueAt(dueAt);
     _validateSchedule(normalizedDueAt, reminderType, reminderInterval, repeat, repeatIntervalDays);
     final now = DateTime.now();
-    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: _currentTimeZone(), priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
+    final reminderTimeZone = reminderType == TaskReminderType.none ? null : await _currentTimeZone();
+    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
     await _repository.saveTask(task);
     _tasks.add(task);
     notifyListeners();
@@ -91,7 +93,7 @@ class TaskStore extends ChangeNotifier {
     if (isFavorite != null && current.isFavorite != isFavorite) changes.add(isFavorite ? 'Added to favorites' : 'Removed from favorites');
     if (category != null && current.category != category.trim()) changes.add('Category changed');
     if (tags != null && current.tags.join('|') != tags.join('|')) changes.add('Tags changed');
-    final reminderTimeZone = reminderType == TaskReminderType.none ? null : (current.reminderTimeZone ?? _currentTimeZone());
+    final reminderTimeZone = reminderType == TaskReminderType.none ? null : await _currentTimeZone();
     final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
@@ -315,9 +317,16 @@ class TaskStore extends ChangeNotifier {
     }
   }
 
-  String _currentTimeZone() {
+  Future<String> _currentTimeZone() async {
     tz_data.initializeTimeZones();
-    return tz.local.name;
+    try {
+      final timezone = await FlutterTimezone.getLocalTimezone();
+      final location = tz.getLocation(timezone.identifier);
+      tz.setLocalLocation(location);
+      return location.name;
+    } catch (_) {
+      return tz.local.name;
+    }
   }
 
   DateTime? _normalizeDueAt(DateTime? value) => value == null ? null : DateTime(value.year, value.month, value.day, value.hour, value.minute);
