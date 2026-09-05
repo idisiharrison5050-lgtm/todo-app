@@ -9,16 +9,23 @@ import 'premium_settings_page.dart';
 import 'task_detail_page.dart';
 
 class PremiumWorkspacePage extends StatefulWidget {
-  const PremiumWorkspacePage({super.key, required this.store, required this.onLogout});
+  const PremiumWorkspacePage({super.key, required this.store, required this.onLogout, this.initialIndex = 0});
   final TaskStore store;
   final Future<void> Function() onLogout;
+  final int initialIndex;
 
   @override
   State<PremiumWorkspacePage> createState() => _PremiumWorkspacePageState();
 }
 
 class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
-  int _index = 0;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex.clamp(0, 4);
+  }
 
   void _addTask() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store)));
