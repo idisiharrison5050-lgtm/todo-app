@@ -85,10 +85,7 @@ class _TodoAppState extends State<TodoApp> {
     themeMode: ThemeMode.system,
     themeAnimationDuration: const Duration(milliseconds: 350),
     themeAnimationCurve: Curves.easeOutCubic,
-    builder: (context, child) => ScrollConfiguration(
-      behavior: const _PremiumScrollBehavior(),
-      child: child ?? const SizedBox.shrink(),
-    ),
+    builder: (context, child) => _ClockRefresh(child: child ?? const SizedBox.shrink()),
     home: FutureBuilder<void>(
       future: _loadFuture,
       builder: (context, snapshot) {
@@ -119,6 +116,35 @@ class _TodoAppState extends State<TodoApp> {
     await _authStore.logout();
     if (mounted) setState(() {});
   }
+}
+
+class _ClockRefresh extends StatefulWidget {
+  const _ClockRefresh({required this.child});
+  final Widget child;
+
+  @override
+  State<_ClockRefresh> createState() => _ClockRefreshState();
+}
+
+class _ClockRefreshState extends State<_ClockRefresh> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _PremiumScrollBehavior extends MaterialScrollBehavior {
