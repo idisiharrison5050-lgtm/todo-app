@@ -35,39 +35,22 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.descendant(
-      of: find.byType(NavigationDestination),
-      matching: find.text('Home'),
-    ), findsOneWidget);
-    expect(find.descendant(
-      of: find.byType(NavigationDestination),
-      matching: find.text('Today'),
-    ), findsOneWidget);
-    expect(find.descendant(
-      of: find.byType(NavigationDestination),
-      matching: find.text('Calendar'),
-    ), findsOneWidget);
-    expect(find.descendant(
-      of: find.byType(NavigationDestination),
-      matching: find.text('Focus'),
-    ), findsOneWidget);
-    expect(find.descendant(
-      of: find.byType(NavigationDestination),
-      matching: find.text('Settings'),
-    ), findsOneWidget);
+    for (final label in ['Home', 'Today', 'Calendar', 'Focus', 'Settings']) {
+      expect(find.widgetWithText(NavigationDestination, label), findsOneWidget);
+    }
     expect(find.text('Your day, in control.'), findsOneWidget);
     expect(find.text('Your day is clear'), findsOneWidget);
 
-    await tester.tap(find.text('Focus'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Focus'));
     await tester.pump();
     expect(find.text('One task. One session. Less noise.'), findsOneWidget);
     expect(find.text('Start 25 min'), findsOneWidget);
 
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Calendar'));
     await tester.pump();
     expect(find.text('Calendar'), findsWidgets);
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Settings'));
     await tester.pump();
     expect(find.text('Account security'), findsOneWidget);
     store.dispose();
@@ -75,12 +58,18 @@ void main() {
 
   testWidgets('creates and completes a task from the home workspace', (WidgetTester tester) async {
     final store = createTestStore();
-    await store.addTask(title: 'Buy groceries', dueAt: DateTime.now());
+    await store.addTask(title: 'Buy groceries', dueAt: DateTime.now().add(const Duration(minutes: 5)));
     await tester.pumpWidget(
       MaterialApp(home: HomePage(store: store, onLogout: () async {})),
     );
     await tester.pump();
 
+    final homeScrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Buy groceries'),
+      500,
+      scrollable: homeScrollable,
+    );
     expect(find.text('Buy groceries'), findsOneWidget);
     expect(find.text('Today'), findsNWidgets(3));
     expect(find.text('All tasks'), findsOneWidget);
@@ -121,6 +110,9 @@ void main() {
 
     await tester.tap(find.text('All tasks'));
     await tester.pumpAndSettle();
+    final allScrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Buy groceries'), 500, scrollable: allScrollable);
+    await tester.scrollUntilVisible(find.text('Write report'), 500, scrollable: allScrollable);
     expect(find.text('Buy groceries'), findsOneWidget);
     expect(find.text('Write report'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
@@ -145,7 +137,7 @@ void main() {
       MaterialApp(home: HomePage(store: store, onLogout: () async {})),
     );
     await tester.pump();
-    await tester.tap(find.text('Focus'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Focus'));
     await tester.pump();
 
     expect(find.text('25:00'), findsOneWidget);
