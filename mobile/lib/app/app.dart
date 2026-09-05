@@ -8,6 +8,7 @@ import '../features/auth/application/auth_store.dart';
 import '../features/auth/presentation/auth_page.dart';
 import '../features/reminders/data/local_notification_service.dart';
 import '../features/tasks/application/task_store.dart';
+import '../features/tasks/presentation/premium_settings_page.dart';
 import '../features/tasks/presentation/premium_workspace_page.dart';
 import '../features/tasks/presentation/task_detail_page.dart';
 
@@ -56,7 +57,7 @@ class _TodoAppState extends State<TodoApp> {
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
-    setState(() => _themeMode = mode);
+    if (mounted) setState(() => _themeMode = mode);
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString('theme_mode', mode.name);
   }
@@ -113,13 +114,13 @@ class _TodoAppState extends State<TodoApp> {
         if (snapshot.connectionState != ConnectionState.done) return const _Loading();
         if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
         if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-        return PremiumWorkspacePage(
+        return SettingsScope(
           store: _taskStore,
           authStore: _authStore,
           notifications: _notifications,
           themeMode: _themeMode,
           onThemeModeChanged: _setThemeMode,
-          onLogout: _logout,
+          child: PremiumWorkspacePage(store: _taskStore, onLogout: _logout),
         );
       },
     ),
