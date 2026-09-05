@@ -5,12 +5,14 @@ import '../../reminders/data/local_notification_service.dart';
 import '../application/task_store.dart';
 
 class SettingsScope extends InheritedWidget {
-  const SettingsScope({super.key, required this.store, required this.authStore, required this.notifications, required this.themeMode, required this.onThemeModeChanged, required super.child});
+  const SettingsScope({super.key, required this.store, required this.authStore, required this.notifications, required this.themeMode, required this.startPage, required this.onThemeModeChanged, required this.onStartPageChanged, required super.child});
   final TaskStore store;
   final AuthStore authStore;
   final LocalNotificationService notifications;
   final ThemeMode themeMode;
+  final int startPage;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
+  final Future<void> Function(int page) onStartPageChanged;
 
   static SettingsScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<SettingsScope>();
@@ -19,7 +21,7 @@ class SettingsScope extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(SettingsScope oldWidget) => store != oldWidget.store || authStore != oldWidget.authStore || notifications != oldWidget.notifications || themeMode != oldWidget.themeMode;
+  bool updateShouldNotify(SettingsScope oldWidget) => store != oldWidget.store || authStore != oldWidget.authStore || notifications != oldWidget.notifications || themeMode != oldWidget.themeMode || startPage != oldWidget.startPage;
 }
 
 class PremiumSettingsPage extends StatefulWidget {
@@ -78,6 +80,7 @@ class _PremiumSettingsPageState extends State<PremiumSettingsPage> {
           const SizedBox(height: 24),
           _Section(title: 'Workspace', children: [
             _SettingTile(icon: Icons.palette_outlined, title: 'Appearance', subtitle: _themeLabel(scope.themeMode), onTap: () => _showAppearance(context, scope)),
+            _SettingTile(icon: Icons.home_outlined, title: 'Start page', subtitle: _startPageLabel(scope.startPage), onTap: () => _showStartPage(context, scope)),
             _SettingTile(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: _notificationSummary, onTap: () => _showNotifications(context, scope.notifications)),
             _SettingTile(icon: Icons.alarm_on_outlined, title: 'Exact reminders', subtitle: _exactAlarmSummary, onTap: () => _configureExactAlarms(context, scope.notifications)),
             _SettingTile(icon: Icons.sync_rounded, title: 'Sync & offline', subtitle: 'Refresh your workspace now', onTap: () => _syncNow(context, scope.store)),
@@ -115,6 +118,16 @@ class _PremiumSettingsPageState extends State<PremiumSettingsPage> {
     }
   }
 
+  String _startPageLabel(int page) {
+    switch (page) {
+      case 1: return 'Calendar';
+      case 2: return 'Focus';
+      case 3: return 'Search';
+      case 0:
+      default: return 'Today';
+    }
+  }
+
   Future<void> _showAppearance(BuildContext context, SettingsScope scope) async {
     final selected = await showModalBottomSheet<ThemeMode>(
       context: context,
@@ -128,6 +141,22 @@ class _PremiumSettingsPageState extends State<PremiumSettingsPage> {
       ])),
     );
     if (selected != null) await scope.onThemeModeChanged(selected);
+  }
+
+  Future<void> _showStartPage(BuildContext context, SettingsScope scope) async {
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const ListTile(title: Text('Start page', style: TextStyle(fontWeight: FontWeight.w900)), subtitle: Text('Choose where Todo opens next time.')),
+        _StartPageOption(page: 0, icon: Icons.today_outlined, label: 'Today', selected: scope.startPage, onTap: () => Navigator.pop(sheetContext, 0)),
+        _StartPageOption(page: 1, icon: Icons.calendar_month_outlined, label: 'Calendar', selected: scope.startPage, onTap: () => Navigator.pop(sheetContext, 1)),
+        _StartPageOption(page: 2, icon: Icons.timer_outlined, label: 'Focus', selected: scope.startPage, onTap: () => Navigator.pop(sheetContext, 2)),
+        _StartPageOption(page: 3, icon: Icons.search_rounded, label: 'Search', selected: scope.startPage, onTap: () => Navigator.pop(sheetContext, 3)),
+        const SizedBox(height: 12),
+      ])),
+    );
+    if (selected != null) await scope.onStartPageChanged(selected);
   }
 
   Future<void> _showNotifications(BuildContext context, LocalNotificationService notifications) async {
@@ -223,6 +252,22 @@ class _ThemeOption extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     leading: Icon(switch (mode) { ThemeMode.system => Icons.brightness_auto_outlined, ThemeMode.light => Icons.light_mode_outlined, ThemeMode.dark => Icons.dark_mode_outlined }),
     title: Text(label), trailing: mode == selected ? const Icon(Icons.check_rounded) : null, onTap: onTap,
+  );
+}
+
+class _StartPageOption extends StatelessWidget {
+  const _StartPageOption({required this.page, required this.icon, required this.label, required this.selected, required this.onTap});
+  final int page;
+  final IconData icon;
+  final String label;
+  final int selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(icon),
+    title: Text(label),
+    trailing: page == selected ? const Icon(Icons.check_rounded) : null,
+    onTap: onTap,
   );
 }
 
