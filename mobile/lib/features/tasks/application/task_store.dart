@@ -62,8 +62,8 @@ class TaskStore extends ChangeNotifier {
     final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: _currentTimeZone(), priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
     await _repository.saveTask(task);
     _tasks.add(task);
-    await _syncReminder(task);
     notifyListeners();
+    unawaited(_syncReminderSafely(task));
   }
 
   Future<void> updateTask(String id, {required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal, TaskRepeat? repeat, int? repeatIntervalDays, bool? isFavorite, String? category, List<String>? tags}) async {
@@ -91,8 +91,8 @@ class TaskStore extends ChangeNotifier {
     final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
-    await _syncReminder(updated);
     notifyListeners();
+    unawaited(_syncReminderSafely(updated));
   }
 
   Future<void> toggleFavorite(String id) async {
@@ -225,8 +225,8 @@ class TaskStore extends ChangeNotifier {
   Future<void> deleteTask(String id) async {
     await _repository.deleteTask(id);
     _tasks.removeWhere((task) => task.id == id);
-    await _reminderScheduler.cancel(id);
     notifyListeners();
+    await _reminderScheduler.cancel(id);
   }
 
   Future<void> clearCompleted() async {
@@ -273,6 +273,14 @@ class TaskStore extends ChangeNotifier {
     final permitted = await _reminderScheduler.requestPermission();
     if (!permitted && !kIsWeb) return;
     await _reminderScheduler.schedule(task);
+  }
+
+  Future<void> _syncReminderSafely(Task task) async {
+    try {
+      await _syncReminder(task);
+    } catch (_) {
+      // A notification failure must not delay or undo the task UI update.
+    }
   }
 
   String _currentTimeZone() {
