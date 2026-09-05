@@ -63,7 +63,7 @@ class TaskStore extends ChangeNotifier {
     await _repository.saveTask(task);
     _tasks.add(task);
     notifyListeners();
-    unawaited(_syncReminderSafely(task));
+    await _syncReminderSafely(task);
   }
 
   Future<void> updateTask(String id, {required String title, String notes = '', DateTime? dueAt, TaskReminderType reminderType = TaskReminderType.none, Duration? reminderInterval, TaskPriority priority = TaskPriority.normal, TaskRepeat? repeat, int? repeatIntervalDays, bool? isFavorite, String? category, List<String>? tags}) async {
@@ -92,7 +92,7 @@ class TaskStore extends ChangeNotifier {
     await _repository.saveTask(updated);
     _tasks[index] = updated;
     notifyListeners();
-    unawaited(_syncReminderSafely(updated));
+    await _syncReminderSafely(updated);
   }
 
   Future<void> toggleFavorite(String id) async {
