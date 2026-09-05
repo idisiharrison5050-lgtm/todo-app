@@ -223,26 +223,21 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> deleteTask(String id) async {
-    final task = _tasks.cast<Task?>().firstWhere((item) => item?.id == id, orElse: () => null);
     await _repository.deleteTask(id);
-    _tasks.removeWhere((item) => item.id == id);
+    _tasks.removeWhere((task) => task.id == id);
     notifyListeners();
 
-    // Remove the native alarm even if cancellation fails; a future app load
-    // performs a full reminder reset so deleted tasks cannot remain scheduled.
+    // A native alarm can outlive the Dart task object. Cancellation is best
+    // effort here; startup reconciliation below removes any orphaned alarms.
     try {
       await _reminderScheduler.cancel(id);
     } catch (_) {
       try {
         await _reminderScheduler.cancel(id);
       } catch (_) {
-        // The task is already deleted. Startup reconciliation will retry.
+        // Startup reconciliation will retry cancellation.
       }
     }
-
-    // Keep the local reference alive only while cancellation is being retried.
-    // This deliberately does not restore the deleted task or its reminder.
-    task;
   }
 
   Future<void> clearCompleted() async {
@@ -252,7 +247,7 @@ class TaskStore extends ChangeNotifier {
       try {
         await _reminderScheduler.cancel(task.id);
       } catch (_) {
-        // Startup reconciliation will retry cancellation if the native call fails.
+        // Startup reconciliation will retry cancellation.
       }
     }
     _tasks.removeWhere((task) => task.isCompleted);
@@ -278,19 +273,15 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> _restoreReminders() async {
-    // Native alarms outlive Dart objects and can therefore become stale when
-    // a task is deleted while the app is stopped. Reconcile from the source
-    // of truth every time tasks are loaded: clear every old alarm, then add
-    // only reminders for current, active tasks.
+    // Native alarms survive process death. Rebuild the native schedule from
+    // the current task repository so deleted tasks can never remain scheduled.
     try {
       await _reminderScheduler.cancelAll();
     } catch (_) {
-      // Retry once because stale alarms are more important to clear than a
-      // transient native scheduling failure.
       try {
         await _reminderScheduler.cancelAll();
       } catch (_) {
-        // Individual scheduling below still runs; the next load retries.
+        // The next account load will retry the reconciliation.
       }
     }
 
