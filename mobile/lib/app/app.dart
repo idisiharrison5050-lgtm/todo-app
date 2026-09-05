@@ -25,7 +25,6 @@ class _TodoAppState extends State<TodoApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   String? _pendingNotificationTaskId;
   ThemeMode _themeMode = ThemeMode.system;
-  int _startPage = 0;
 
   @override
   void initState() {
@@ -40,8 +39,6 @@ class _TodoAppState extends State<TodoApp> {
   Future<void> _initialize() async {
     final preferences = await SharedPreferences.getInstance();
     _themeMode = _themeModeFromName(preferences.getString('theme_mode'));
-    final storedStartPage = preferences.getInt('start_page');
-    _startPage = storedStartPage != null && storedStartPage >= 0 && storedStartPage <= 4 ? storedStartPage : 0;
     await _authStore.restore();
     await _taskStore.load();
     _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
@@ -62,13 +59,6 @@ class _TodoAppState extends State<TodoApp> {
     await preferences.setString('theme_mode', mode.name);
   }
 
-  Future<void> _setStartPage(int page) async {
-    if (page < 0 || page > 4) return;
-    if (mounted) setState(() => _startPage = page);
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setInt('start_page', page);
-  }
-
   void _openPendingNotification() {
     final id = _pendingNotificationTaskId;
     if (id == null) return;
@@ -80,10 +70,7 @@ class _TodoAppState extends State<TodoApp> {
 
   void _openTask(String id) {
     final context = _navigatorKey.currentContext;
-    if (context == null) {
-      _pendingNotificationTaskId = id;
-      return;
-    }
+    if (context == null) { _pendingNotificationTaskId = id; return; }
     for (final task in _taskStore.tasks) {
       if (task.id == id) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: _taskStore, task: task)));
@@ -127,14 +114,7 @@ class _TodoAppState extends State<TodoApp> {
           notifications: _notifications,
           themeMode: _themeMode,
           onThemeModeChanged: _setThemeMode,
-          startPage: _startPage,
-          onStartPageChanged: _setStartPage,
-          child: PremiumWorkspacePage(
-            store: _taskStore,
-            initialIndex: _startPage,
-            onIndexChanged: _setStartPage,
-            onLogout: _logout,
-          ),
+          child: PremiumWorkspacePage(store: _taskStore, onLogout: _logout),
         );
       },
     ),
@@ -168,25 +148,12 @@ class _Loading extends StatefulWidget {
 
 class _LoadingState extends State<_Loading> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
-
+  @override void dispose() { _controller.dispose(); super.dispose(); }
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ScaleTransition(
-          scale: Tween<double>(begin: .94, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
-          child: Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
-        ),
-        const SizedBox(height: 20),
-        Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
-      ],),
-    ),
-  );
+  Widget build(BuildContext context) => Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    ScaleTransition(scale: Tween<double>(begin: .94, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)), child: Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34))),
+    const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12), const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+  ])));
 }
 
 class _Error extends StatelessWidget {
