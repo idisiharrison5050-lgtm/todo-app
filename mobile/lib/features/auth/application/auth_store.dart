@@ -18,12 +18,17 @@ class AuthStore {
   Future<bool> restore() async {
     _token = await _storage.read();
     if (_token == null || _token!.isEmpty) return false;
-    final accountId = await _storage.readAccountId();
-    if (accountId == null || accountId.isEmpty) {
-      try {
-        _user = await _api.me(_token!);
-        await _storage.writeAccountId(_user!.id);
-      } catch (_) {}
+    try {
+      _user = await _api.me(_token!);
+      await _storage.writeAccountId(_user!.id);
+    } catch (_) {
+      final accountId = await _storage.readAccountId();
+      if (accountId == null || accountId.isEmpty) {
+        await _storage.clear();
+        _token = null;
+        _user = null;
+        return false;
+      }
     }
     return true;
   }
