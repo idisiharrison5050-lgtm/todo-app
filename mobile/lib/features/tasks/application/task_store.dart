@@ -26,6 +26,7 @@ class TaskStore extends ChangeNotifier {
   final ReminderScheduler _reminderScheduler;
   final List<Task> _tasks = <Task>[];
   ConnectivitySyncManager? _connectivitySyncManager;
+  Timer? _clockRefreshTimer;
   bool _isLoaded = false;
 
   static ReminderScheduler _createReminderScheduler() => kIsWeb ? NoopReminderScheduler() : LocalReminderScheduler();
@@ -37,6 +38,10 @@ class TaskStore extends ChangeNotifier {
     final loaded = await _repository.getTasks();
     _tasks..clear()..addAll(loaded);
     _isLoaded = true;
+    _clockRefreshTimer ??= Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!hasListeners) return;
+      notifyListeners();
+    });
     await _restoreReminders();
     notifyListeners();
   }
@@ -333,6 +338,8 @@ class TaskStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _clockRefreshTimer?.cancel();
+    _clockRefreshTimer = null;
     _connectivitySyncManager?.dispose();
     unawaited(_repository.close());
     super.dispose();
