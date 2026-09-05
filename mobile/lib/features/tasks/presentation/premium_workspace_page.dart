@@ -44,13 +44,7 @@ class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
     return Scaffold(
       body: AnimatedBuilder(
         animation: widget.store,
-        builder: (_, __) => AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          layoutBuilder: (current, previous) => Stack(children: [...previous, if (current != null) current]),
-          child: KeyedSubtree(key: ValueKey(_index), child: pages[_index]),
-        ),
+        builder: (_, __) => IndexedStack(index: _index, children: pages),
       ),
       bottomNavigationBar: _Dock(index: _index, onChanged: (value) => setState(() => _index = value)),
       floatingActionButton: _index == 0
@@ -171,12 +165,6 @@ class _Today extends StatelessWidget {
             sliver: SliverToBoxAdapter(child: _Progress(progress: progress, completed: completed, total: all.length)),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
-            sliver: SliverToBoxAdapter(
-              child: _TodayInsight(active: active.length, overdue: overdue, scheduled: today.length),
-            ),
-          ),
-          SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 25, 22, 10),
             sliver: SliverToBoxAdapter(
               child: Row(
@@ -226,33 +214,6 @@ class _Today extends StatelessWidget {
   }
 }
 
-class _TodayInsight extends StatelessWidget {
-  const _TodayInsight({required this.active, required this.overdue, required this.scheduled});
-  final int active;
-  final int overdue;
-  final int scheduled;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final label = overdue > 0 ? '$overdue need${overdue == 1 ? 's' : ''} attention' : scheduled > 0 ? '$scheduled scheduled for today' : 'Your schedule is clear';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7)),
-      ),
-      child: Row(children: [
-        Container(width: 32, height: 32, decoration: BoxDecoration(color: overdue > 0 ? scheme.errorContainer : scheme.primaryContainer, shape: BoxShape.circle), child: Icon(overdue > 0 ? Icons.priority_high_rounded : Icons.auto_awesome_rounded, size: 17, color: overdue > 0 ? scheme.error : scheme.primary)),
-        const SizedBox(width: 10),
-        Expanded(child: Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w750))),
-        Text('$active active', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w700)),
-      ]),
-    );
-  }
-}
-
 class _Progress extends StatelessWidget {
   const _Progress({required this.progress, required this.completed, required this.total});
   final double progress;
@@ -264,10 +225,7 @@ class _Progress extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [scheme.primary, scheme.primary.withValues(alpha: .82), scheme.tertiary]),
-        borderRadius: BorderRadius.circular(27),
-      ),
+      decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(27)),
       child: Row(
         children: [
           SizedBox(
@@ -286,11 +244,11 @@ class _Progress extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('DAILY MOMENTUM', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .7), fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 5),
+                Text('Daily progress', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .76), fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
                 Text('$completed of $total completed', style: TextStyle(color: scheme.onPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 5),
-                Text(progress >= 1 ? 'Everything is done.' : progress >= .7 ? 'You are having a strong day.' : 'Keep going. You are making progress.', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .82), fontSize: 12.5)),
+                Text(progress >= 1 ? 'Everything is done.' : 'Keep going. You are making progress.', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .8), fontSize: 12.5)),
               ],
             ),
           ),
@@ -490,8 +448,8 @@ class _SearchState extends State<_Search> {
             sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('SEARCH YOUR SPACE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: scheme.primary, fontWeight: FontWeight.w900)), const SizedBox(height: 5), Text('Find anything', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.4))]),
-                  if (_query.isNotEmpty) IconButton(onPressed: () { _controller.clear(); setState(() => _query = ''); _focusNode.requestFocus(); }, tooltip: 'Clear search', icon: const Icon(Icons.close_rounded)),
+                  Expanded(child: Text('Find anything', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.4))),
+                  IconButton(onPressed: () { _controller.clear(); setState(() => _query = ''); _focusNode.requestFocus(); }, tooltip: 'Clear search', icon: const Icon(Icons.close_rounded)),
                 ],
               ),
             ),
