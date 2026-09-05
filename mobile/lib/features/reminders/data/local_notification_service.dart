@@ -108,6 +108,21 @@ class LocalNotificationService {
     return (androidGranted ?? androidEnabled ?? false) || (iosGranted ?? false);
   }
 
+  Future<bool> canScheduleExactNotifications() async {
+    if (kIsWeb) return false;
+    await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.canScheduleExactNotifications() ?? false;
+  }
+
+  Future<bool> requestExactAlarmPermission() async {
+    if (kIsWeb) return false;
+    await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (await android?.canScheduleExactNotifications() ?? false) return true;
+    return await android?.requestExactAlarmsPermission() ?? false;
+  }
+
   Future<void> scheduleOneTime({required int id, required String title, required String body, required DateTime scheduledAt, String? timeZone, String? payload, bool includeSnoozeActions = true}) async {
     await initialize();
     if (kIsWeb) return;
