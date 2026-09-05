@@ -63,18 +63,16 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
-              _TaskHero(
-                task: task,
-                overdue: overdue,
-                onToggle: () => widget.store.toggleCompleted(task.id),
+              _TaskHero(task: task, overdue: overdue, onToggle: () => widget.store.toggleCompleted(task.id)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTaskPage(store: widget.store, task: task))),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit task details'),
               ),
               if (task.notes.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                _SectionCard(
-                  title: 'Notes',
-                  icon: Icons.notes_outlined,
-                  child: Text(task.notes, style: Theme.of(context).textTheme.bodyLarge),
-                ),
+                _SectionCard(title: 'Notes', icon: Icons.notes_outlined, child: Text(task.notes, style: Theme.of(context).textTheme.bodyLarge)),
               ],
               const SizedBox(height: 16),
               _DetailsGrid(task: task, overdue: overdue),
@@ -93,14 +91,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     if (task.subtasks.isNotEmpty) const Divider(height: 24),
                     Row(
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _subtaskController,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _addSubtask(task.id),
-                            decoration: const InputDecoration(hintText: 'Add checklist item', prefixIcon: Icon(Icons.add_task)),
-                          ),
-                        ),
+                        Expanded(child: TextField(controller: _subtaskController, textInputAction: TextInputAction.done, onSubmitted: (_) => _addSubtask(task.id), decoration: const InputDecoration(hintText: 'Add checklist item', prefixIcon: Icon(Icons.add_task)))),
                         const SizedBox(width: 8),
                         IconButton.filled(tooltip: 'Add checklist item', onPressed: () => _addSubtask(task.id), icon: const Icon(Icons.add_rounded)),
                       ],
@@ -168,58 +159,31 @@ class _TaskHero extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .75)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: onToggle,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: task.isCompleted ? scheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: task.isCompleted ? scheme.primary : scheme.outline, width: 1.6),
-                  ),
-                  child: task.isCompleted ? Icon(Icons.check_rounded, size: 22, color: scheme.onPrimary) : null,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  task.title,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                    decorationThickness: 2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (overdue || task.isFavorite || task.priority == TaskPriority.high) ...[
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                if (overdue) _StatusPill(icon: Icons.warning_amber_rounded, label: 'Overdue', color: scheme.error),
-                if (task.isFavorite) _StatusPill(icon: Icons.star_rounded, label: 'Favorite', color: scheme.primary),
-                if (task.priority == TaskPriority.high) _StatusPill(icon: Icons.bolt_rounded, label: 'High priority', color: scheme.error),
-              ],
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(28), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .75))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          GestureDetector(
+            onTap: onToggle,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: task.isCompleted ? scheme.primary : Colors.transparent, borderRadius: BorderRadius.circular(11), border: Border.all(color: task.isCompleted ? scheme.primary : scheme.outline, width: 1.6)),
+              child: task.isCompleted ? Icon(Icons.check_rounded, size: 22, color: scheme.onPrimary) : null,
             ),
-          ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Text(task.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, decoration: task.isCompleted ? TextDecoration.lineThrough : null, decorationThickness: 2))),
+        ]),
+        if (overdue || task.isFavorite || task.priority == TaskPriority.high) ...[
+          const SizedBox(height: 18),
+          Wrap(spacing: 7, runSpacing: 7, children: [
+            if (overdue) _StatusPill(icon: Icons.warning_amber_rounded, label: 'Overdue', color: scheme.error),
+            if (task.isFavorite) _StatusPill(icon: Icons.star_rounded, label: 'Favorite', color: scheme.primary),
+            if (task.priority == TaskPriority.high) _StatusPill(icon: Icons.bolt_rounded, label: 'High priority', color: scheme.error),
+          ]),
         ],
-      ),
+      ]),
     );
   }
 }
@@ -229,20 +193,14 @@ class _StatusPill extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(color: color.withValues(alpha: .11), borderRadius: BorderRadius.circular(12)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: color), const SizedBox(width: 5), Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color))]),
-      );
+  Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), decoration: BoxDecoration(color: color.withValues(alpha: .11), borderRadius: BorderRadius.circular(12)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: color), const SizedBox(width: 5), Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color))]));
 }
 
 class _DetailsGrid extends StatelessWidget {
   const _DetailsGrid({required this.task, required this.overdue});
   final Task task;
   final bool overdue;
-
   @override
   Widget build(BuildContext context) {
     final items = <Widget>[
@@ -252,111 +210,45 @@ class _DetailsGrid extends StatelessWidget {
       _DetailTile(icon: Icons.flag_outlined, title: 'Priority', value: _priorityLabel(task.priority), emphasis: task.priority == TaskPriority.high),
     ];
     if (task.category.isNotEmpty) items.add(_DetailTile(icon: Icons.folder_outlined, title: 'Category', value: task.category));
-    if (task.tags.isNotEmpty) {
-      items.add(_DetailTile(icon: Icons.tag_rounded, title: 'Tags', value: task.tags.join('  ·  ')));
-    }
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55),
-      itemBuilder: (_, index) => items[index],
-    );
+    if (task.tags.isNotEmpty) items.add(_DetailTile(icon: Icons.tag_rounded, title: 'Tags', value: task.tags.join('  ·  ')));
+    return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55), itemBuilder: (_, index) => items[index]);
   }
-
   String _formatDateTime(BuildContext context, DateTime value) => '${MaterialLocalizations.of(context).formatMediumDate(value)} · ${TimeOfDay.fromDateTime(value).format(context)}';
-  String _formatDuration(Duration? value) {
-    if (value == null) return 'Not configured';
-    if (value.inHours >= 1 && value.inMinutes % 60 == 0) return '${value.inHours}h';
-    return '${value.inMinutes}m';
-  }
-  String _repeatLabel(Task task) => switch (task.repeat) {
-    TaskRepeat.none => 'Does not repeat', TaskRepeat.daily => 'Daily', TaskRepeat.weekdays => 'Weekdays',
-    TaskRepeat.weekly => 'Weekly', TaskRepeat.monthly => 'Monthly', TaskRepeat.custom => 'Every ${task.repeatIntervalDays ?? 1} days',
-  };
+  String _formatDuration(Duration? value) { if (value == null) return 'Not configured'; if (value.inHours >= 1 && value.inMinutes % 60 == 0) return '${value.inHours}h'; return '${value.inMinutes}m'; }
+  String _repeatLabel(Task task) => switch (task.repeat) { TaskRepeat.none => 'Does not repeat', TaskRepeat.daily => 'Daily', TaskRepeat.weekdays => 'Weekdays', TaskRepeat.weekly => 'Weekly', TaskRepeat.monthly => 'Monthly', TaskRepeat.custom => 'Every ${task.repeatIntervalDays ?? 1} days' };
   String _priorityLabel(TaskPriority value) => switch (value) { TaskPriority.low => 'Low', TaskPriority.normal => 'Normal', TaskPriority.high => 'High' };
 }
 
 class _DetailTile extends StatelessWidget {
   const _DetailTile({required this.icon, required this.title, required this.value, this.emphasis = false});
-  final IconData icon;
-  final String title;
-  final String value;
-  final bool emphasis;
-
+  final IconData icon; final String title; final String value; final bool emphasis;
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = emphasis ? scheme.error : scheme.primary;
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: .55), borderRadius: BorderRadius.circular(20)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, size: 19, color: color),
-        const Spacer(),
-        Text(title, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 3),
-        Text(value, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, color: emphasis ? color : null)),
-      ]),
-    );
+    final scheme = Theme.of(context).colorScheme; final color = emphasis ? scheme.error : scheme.primary;
+    return Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: .55), borderRadius: BorderRadius.circular(20)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, size: 19, color: color), const Spacer(), Text(title, style: Theme.of(context).textTheme.bodySmall), const SizedBox(height: 3), Text(value, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, color: emphasis ? color : null))]));
   }
 }
 
 class _SubtaskRow extends StatelessWidget {
   const _SubtaskRow({required this.taskId, required this.item, required this.store});
-  final String taskId;
-  final TaskSubtask item;
-  final TaskStore store;
-
+  final String taskId; final TaskSubtask item; final TaskStore store;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(children: [
-      Checkbox(value: item.isCompleted, onChanged: (value) => store.updateSubtask(taskId, item.id, isCompleted: value ?? false)),
-      Expanded(child: Text(item.title, style: TextStyle(fontWeight: FontWeight.w600, decoration: item.isCompleted ? TextDecoration.lineThrough : null))),
-      IconButton(tooltip: 'Delete checklist item', icon: const Icon(Icons.close_rounded), onPressed: () => store.deleteSubtask(taskId, item.id)),
-    ]),
-  );
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [Checkbox(value: item.isCompleted, onChanged: (value) => store.updateSubtask(taskId, item.id, isCompleted: value ?? false)), Expanded(child: Text(item.title, style: TextStyle(fontWeight: FontWeight.w600, decoration: item.isCompleted ? TextDecoration.lineThrough : null))), IconButton(tooltip: 'Delete checklist item', icon: const Icon(Icons.close_rounded), onPressed: () => store.deleteSubtask(taskId, item.id))]));
 }
 
 class _HistoryRow extends StatelessWidget {
   const _HistoryRow({required this.entry});
   final TaskHistoryEntry entry;
-
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(width: 9, height: 9, margin: const EdgeInsets.only(top: 5), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, shape: BoxShape.circle)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(entry.action, style: const TextStyle(fontWeight: FontWeight.w700)),
-        if (entry.detail.isNotEmpty) ...[const SizedBox(height: 2), Text(entry.detail)],
-        const SizedBox(height: 2),
-        Text('${entry.timestamp.day}/${entry.timestamp.month}/${entry.timestamp.year} · ${entry.timestamp.hour.toString().padLeft(2, '0')}:${entry.timestamp.minute.toString().padLeft(2, '0')}', style: Theme.of(context).textTheme.bodySmall),
-      ])),
-    ]),
-  );
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 9, height: 9, margin: const EdgeInsets.only(top: 5), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, shape: BoxShape.circle)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(entry.action, style: const TextStyle(fontWeight: FontWeight.w700)), if (entry.detail.isNotEmpty) ...[const SizedBox(height: 2), Text(entry.detail)], const SizedBox(height: 2), Text('${entry.timestamp.day}/${entry.timestamp.month}/${entry.timestamp.year} · ${entry.timestamp.hour.toString().padLeft(2, '0')}:${entry.timestamp.minute.toString().padLeft(2, '0')}', style: Theme.of(context).textTheme.bodySmall)]))]));
 }
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.title, required this.icon, required this.child, this.trailing});
-  final String title;
-  final IconData icon;
-  final Widget child;
-  final Widget? trailing;
-
+  final String title; final IconData icon; final Widget child; final Widget? trailing;
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(icon, size: 20, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))), ?trailing]),
-        const SizedBox(height: 15),
-        child,
-      ]),
-    );
+    return Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24), border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, size: 20, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))), if (trailing != null) trailing!]), const SizedBox(height: 15), child]));
   }
 }
