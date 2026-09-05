@@ -88,6 +88,16 @@ class LocalNotificationService {
     _initialized = true;
   }
 
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb) return false;
+    await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) return await android.areNotificationsEnabled() ?? false;
+    final ios = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) return await ios.checkPermissions().then((value) => value?.isEnabled ?? false);
+    return false;
+  }
+
   Future<String?> getLaunchTaskId() async {
     if (kIsWeb) return null;
     await initialize();
