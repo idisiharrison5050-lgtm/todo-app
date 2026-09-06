@@ -47,15 +47,27 @@ class _TodoAppState extends State<TodoApp> {
     await _taskStore.load();
     _showOnboarding = _authStore.isAuthenticated && preferences.getBool('onboarding_complete') != true;
     _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
-    if (_authStore.isAuthenticated && _pendingNotificationTaskId != null) _openPendingNotification();
+    if (_authStore.isAuthenticated && _pendingNotificationTaskId != null) {
+      _openPendingNotification();
+    }
   }
 
   ThemeMode _themeModeFromName(String? value) {
-    switch (value) { case 'light': return ThemeMode.light; case 'dark': return ThemeMode.dark; default: return ThemeMode.system; }
+    switch (value) {
+      case 'light': return ThemeMode.light;
+      case 'dark': return ThemeMode.dark;
+      default: return ThemeMode.system;
+    }
   }
 
   int _startPageFromName(String? value) {
-    switch (value) { case 'calendar': return 1; case 'focus': return 2; case 'search': return 3; case 'today': default: return 0; }
+    switch (value) {
+      case 'calendar': return 1;
+      case 'focus': return 2;
+      case 'search': return 3;
+      case 'today':
+      default: return 0;
+    }
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
@@ -81,12 +93,18 @@ class _TodoAppState extends State<TodoApp> {
   void _openPendingNotification() {
     final id = _pendingNotificationTaskId;
     if (id == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) { _pendingNotificationTaskId = null; _openTask(id); });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingNotificationTaskId = null;
+      _openTask(id);
+    });
   }
 
   void _openTask(String id) {
     final context = _navigatorKey.currentContext;
-    if (context == null) { _pendingNotificationTaskId = id; return; }
+    if (context == null) {
+      _pendingNotificationTaskId = id;
+      return;
+    }
     for (final task in _taskStore.tasks) {
       if (task.id == id) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: _taskStore, task: task)));
@@ -114,34 +132,39 @@ class _TodoAppState extends State<TodoApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    navigatorKey: _navigatorKey,
-    title: 'Todo',
-    debugShowCheckedModeBanner: false,
-    theme: AppTheme.light,
-    darkTheme: AppTheme.dark,
-    themeMode: _themeMode,
-    themeAnimationDuration: const Duration(milliseconds: 350),
-    themeAnimationCurve: Curves.easeOutCubic,
-    home: FutureBuilder<void>(
-      future: _loadFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) return const _Loading();
-        if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
-        if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
-        if (_showOnboarding) return FirstRunOnboardingPage(notifications: _notifications, onComplete: _completeOnboarding);
-        return SettingsScope(
-          store: _taskStore,
-          authStore: _authStore,
-          notifications: _notifications,
-          themeMode: _themeMode,
-          startPage: _startPage,
-          onThemeModeChanged: _setThemeMode,
-          onStartPageChanged: _setStartPage,
-          child: PremiumWorkspacePage(key: ValueKey('workspace-$_startPage'), store: _taskStore, onLogout: _logout, initialIndex: _startPage),
-        );
-      },
-    ),
-  );
+        navigatorKey: _navigatorKey,
+        title: 'Todo',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: _themeMode,
+        themeAnimationDuration: const Duration(milliseconds: 350),
+        themeAnimationCurve: Curves.easeOutCubic,
+        home: FutureBuilder<void>(
+          future: _loadFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) return const _Loading();
+            if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
+            if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
+            if (_showOnboarding) return FirstRunOnboardingPage(notifications: _notifications, onComplete: _completeOnboarding);
+            return SettingsScope(
+              store: _taskStore,
+              authStore: _authStore,
+              notifications: _notifications,
+              themeMode: _themeMode,
+              startPage: _startPage,
+              onThemeModeChanged: _setThemeMode,
+              onStartPageChanged: _setStartPage,
+              child: PremiumWorkspacePage(
+                key: ValueKey('workspace-$_startPage'),
+                store: _taskStore,
+                onLogout: _logout,
+                initialIndex: _startPage,
+              ),
+            );
+          },
+        ),
+      );
 
   Future<void> _logout() async {
     final context = _navigatorKey.currentContext;
@@ -170,14 +193,75 @@ class _Loading extends StatefulWidget {
 }
 
 class _LoadingState extends State<_Loading> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
-  @override void dispose() { _controller.dispose(); super.dispose(); }
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
   @override
-  Widget build(BuildContext context) => Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [ScaleTransition(scale: Tween<double>(begin: .94, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)), child: Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34))), const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12), const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3))]));
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: Tween<double>(begin: .94, end: 1.0).animate(
+                CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+              ),
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(Icons.check_rounded, color: scheme.onPrimary, size: 34),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Error extends StatelessWidget {
   const _Error({required this.onRetry});
   final VoidCallback onRetry;
-  @override Widget build(BuildContext context) => Scaffold(body: Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.cloud_off_rounded, size: 48, color: Theme.of(context).colorScheme.error), const SizedBox(height: 16), Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 8), const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center), const SizedBox(height: 20), FilledButton(onPressed: onRetry, child: const Text('Try again'))])));
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off_rounded, size: 48, color: scheme.error),
+              const SizedBox(height: 16),
+              Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              FilledButton(onPressed: onRetry, child: const Text('Try again')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
