@@ -15,6 +15,7 @@ class _FirstRunOnboardingPageState extends State<FirstRunOnboardingPage> {
   int _page = 0;
   bool _requesting = false;
   bool? _notificationEnabled;
+  bool? _exactAlarmEnabled;
 
   @override
   void dispose() {
@@ -35,7 +36,24 @@ class _FirstRunOnboardingPageState extends State<FirstRunOnboardingPage> {
     setState(() => _requesting = true);
     try {
       final granted = await widget.notifications.requestPermissions();
-      if (mounted) setState(() => _notificationEnabled = granted);
+      var exact = _exactAlarmEnabled;
+      if (granted) {
+        exact = await widget.notifications.canScheduleExactNotifications();
+      }
+      if (mounted) setState(() { _notificationEnabled = granted; _exactAlarmEnabled = exact; });
+    } finally {
+      if (mounted) setState(() => _requesting = false);
+    }
+  }
+
+  Future<void> _enableExactAlarms() async {
+    if (_requesting) return;
+    setState(() => _requesting = true);
+    try {
+      final granted = await widget.notifications.requestExactAlarmPermission();
+      if (mounted) setState(() => _exactAlarmEnabled = granted);
+    } catch (_) {
+      if (mounted) setState(() => _exactAlarmEnabled = false);
     } finally {
       if (mounted) setState(() => _requesting = false);
     }
@@ -97,15 +115,39 @@ class _FirstRunOnboardingPageState extends State<FirstRunOnboardingPage> {
                   _Slide(
                     icon: Icons.notifications_active_rounded,
                     eyebrow: 'Never miss the important stuff',
-                    title: 'Reminders that actually show up.',
-                    body: 'Allow notifications so scheduled tasks can reach you at the right time. You can change this later in Settings.',
+                    title: 'Set up reminders before you start.',
+                    body: 'Allow notifications so scheduled tasks can reach you at the right time. Precise alarm access can improve timing on supported Android devices.',
                     scheme: scheme,
-                    action: OutlinedButton.icon(
-                      onPressed: _requesting ? null : _enableNotifications,
-                      icon: _requesting
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Icon(_notificationEnabled == true ? Icons.check_rounded : Icons.notifications_active_outlined),
-                      label: Text(_requesting ? 'Requesting permission…' : _notificationEnabled == true ? 'Notifications enabled' : 'Enable notifications'),
+                    action: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _requesting ? null : _enableNotifications,
+                            icon: _requesting
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : Icon(_notificationEnabled == true ? Icons.check_rounded : Icons.notifications_active_outlined),
+                            label: Text(_requesting ? 'Requesting permission…' : _notificationEnabled == true ? 'Notifications enabled' : 'Enable notifications'),
+                          ),
+                        ),
+                        if (_notificationEnabled == true) ...[
+                          const SizedBox(height: 9),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _requesting || _exactAlarmEnabled == true ? null : _enableExactAlarms,
+                              icon: Icon(_exactAlarmEnabled == true ? Icons.verified_rounded : Icons.alarm_on_outlined),
+                              label: Text(_exactAlarmEnabled == true ? 'Precise alarms enabled' : 'Enable precise alarms'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _exactAlarmEnabled == true ? 'Reminder timing is configured for precision.' : 'Optional: Android may use less precise timing without this access.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
