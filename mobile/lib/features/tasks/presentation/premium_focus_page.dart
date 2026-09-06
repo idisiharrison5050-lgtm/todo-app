@@ -12,11 +12,11 @@ class PremiumFocusPage extends StatefulWidget {
 
 class _PremiumFocusPageState extends State<PremiumFocusPage> {
   Timer? _timer;
+  Duration _length = const Duration(minutes: 25);
   Duration _remaining = const Duration(minutes: 25);
-  Duration _sessionLength = const Duration(minutes: 25);
   bool _running = false;
-  String? _selectedTaskId;
-  int _completedSessions = 0;
+  String? _taskId;
+  int _completed = 0;
 
   @override
   void dispose() {
@@ -24,13 +24,12 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
     super.dispose();
   }
 
-  void _toggleTimer() {
+  void _toggle() {
     if (_running) {
       _timer?.cancel();
       setState(() => _running = false);
       return;
     }
-
     setState(() => _running = true);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_remaining.inSeconds <= 1) {
@@ -39,61 +38,42 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
         setState(() {
           _remaining = Duration.zero;
           _running = false;
-          _completedSessions++;
+          _completed++;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text('Focus session complete. Nice work.'),
-          ),
-        );
-        return;
-      }
-      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Focus session complete. Nice work.')));
+      } else if (mounted) {
         setState(() => _remaining -= const Duration(seconds: 1));
       }
     });
   }
 
-  void _reset(Duration duration) {
+  void _setLength(Duration value) {
+    if (_running) return;
     _timer?.cancel();
     setState(() {
-      _running = false;
-      _sessionLength = duration;
-      _remaining = duration;
+      _length = value;
+      _remaining = value;
     });
   }
 
-  Future<void> _chooseCustomDuration() async {
-    final controller = TextEditingController(text: _sessionLength.inMinutes.toString());
-    final formKey = GlobalKey<FormState>();
+  Future<void> _customLength() async {
+    final controller = TextEditingController(text: _length.inMinutes.toString());
     final minutes = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Custom focus session'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(labelText: 'Minutes', suffixText: 'min'),
-            validator: (value) {
-              final parsed = int.tryParse(value?.trim() ?? '');
-              if (parsed == null || parsed < 5 || parsed > 180) return 'Choose between 5 and 180 minutes';
-              return null;
-            },
-            onFieldSubmitted: (_) {
-              if (formKey.currentState!.validate()) Navigator.pop(dialogContext, int.parse(controller.text.trim()));
-            },
-          ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Minutes', suffixText: 'min'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
-              if (formKey.currentState!.validate()) Navigator.pop(dialogContext, int.parse(controller.text.trim()));
+              final value = int.tryParse(controller.text.trim());
+              if (value != null && value >= 5 && value <= 180) Navigator.pop(dialogContext, value);
             },
             child: const Text('Set session'),
           ),
@@ -101,22 +81,17 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
       ),
     );
     controller.dispose();
-    if (minutes != null && mounted) _reset(Duration(minutes: minutes));
+    if (minutes != null && mounted) _setLength(Duration(minutes: minutes));
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final active = widget.store.tasks.where((task) => !task.isCompleted).toList();
-    final progress = _sessionLength.inSeconds == 0
-        ? 0.0
-        : 1 - (_remaining.inSeconds / _sessionLength.inSeconds).clamp(0.0, 1.0);
-    final minutes = _remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
-    final selectedTask = _selectedTaskId == null
-        ? null
-        : active.where((task) => task.id == _selectedTaskId).firstOrNull;
+    final progress = _length.inSeconds == 0 ? 0.0 : 1 - (_remaining.inSeconds / _length.inSeconds).clamp(0.0, 1.0);
+    final mm = _remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final ss = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final selected = _taskId == null ? null : active.where((task) => task.id == _taskId).firstOrNull;
 
     return SafeArea(
       child: CustomScrollView(
@@ -127,16 +102,13 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Focus', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.5)),
-                        const SizedBox(height: 4),
-                        Text(_running ? 'Protect this time.' : 'Make space for deep work.', style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Focus', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.5)),
+                      const SizedBox(height: 4),
+                      Text(_running ? 'Protect this time.' : 'Make space for deep work.', style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                    ]),
                   ),
-                  Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, shape: BoxShape.circle), child: Icon(Icons.self_improvement_rounded, color: scheme.primary)),
+                  CircleAvatar(backgroundColor: scheme.primaryContainer, child: Icon(Icons.self_improvement_rounded, color: scheme.primary)),
                 ],
               ),
             ),
@@ -145,7 +117,7 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
             padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
             sliver: SliverToBoxAdapter(
               child: Container(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [scheme.primary, scheme.tertiary]),
                   borderRadius: BorderRadius.circular(32),
@@ -153,47 +125,42 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                 ),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: scheme.onPrimary.withValues(alpha: .13), borderRadius: BorderRadius.circular(99)),
-                          child: Text(_running ? '●  SESSION LIVE' : 'READY WHEN YOU ARE', style: TextStyle(color: scheme.onPrimary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
-                        ),
-                        const Spacer(),
-                        if (_completedSessions > 0) Text('$_completedSessions completed', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .8), fontSize: 11, fontWeight: FontWeight.w800)),
-                        if (_selectedTaskId != null) ...[const SizedBox(width: 10), Icon(Icons.link_rounded, color: scheme.onPrimary.withValues(alpha: .8), size: 19)],
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 226,
-                          height: 226,
-                          child: CircularProgressIndicator(value: progress, strokeWidth: 13, backgroundColor: scheme.onPrimary.withValues(alpha: .13), color: scheme.onPrimary),
-                        ),
-                        Column(
-                          children: [
+                    Row(children: [
+                      Text(_running ? '● SESSION LIVE' : 'READY WHEN YOU ARE', style: TextStyle(color: scheme.onPrimary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                      const Spacer(),
+                      if (_completed > 0) Text('$_completed completed', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .8), fontSize: 11, fontWeight: FontWeight.w800)),
+                    ]),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: 224,
+                      height: 224,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(value: progress, strokeWidth: 13, backgroundColor: scheme.onPrimary.withValues(alpha: .13), color: scheme.onPrimary),
+                          Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                             Icon(_running ? Icons.bolt_rounded : Icons.hourglass_empty_rounded, color: scheme.onPrimary, size: 26),
                             const SizedBox(height: 4),
-                            Text('$minutes:$seconds', style: TextStyle(color: scheme.onPrimary, fontSize: 50, fontWeight: FontWeight.w900, letterSpacing: -2.5)),
-                            Text(_selectedTaskId == null ? (_running ? 'IN FOCUS' : '${_sessionLength.inMinutes} MIN SESSION') : 'TASK SELECTED', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .72), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                          ],
-                        ),
-                      ],
+                            Text('$mm:$ss', style: TextStyle(color: scheme.onPrimary, fontSize: 50, fontWeight: FontWeight.w900, letterSpacing: -2.5)),
+                            Text(_taskId == null ? '${_length.inMinutes} MIN SESSION' : 'TASK SELECTED', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .72), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                          ]),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _toggleTimer,
-                      style: FilledButton.styleFrom(backgroundColor: scheme.onPrimary, foregroundColor: scheme.primary, minimumSize: const Size.fromHeight(54)),
-                      icon: Icon(_running ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                      label: Text(_running ? 'Pause session' : 'Start session'),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: FilledButton.icon(
+                        onPressed: _toggle,
+                        style: FilledButton.styleFrom(backgroundColor: scheme.onPrimary, foregroundColor: scheme.primary),
+                        icon: Icon(_running ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                        label: Text(_running ? 'Pause session' : 'Start session'),
+                      ),
                     ),
-                    if (selectedTask != null) ...[
+                    if (selected != null) ...[
                       const SizedBox(height: 10),
-                      Text('Working on “${selectedTask.title}”', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary.withValues(alpha: .84), fontWeight: FontWeight.w700)),
+                      Text('Working on “${selected.title}”', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary.withValues(alpha: .84), fontWeight: FontWeight.w700)),
                     ],
                   ],
                 ),
@@ -203,61 +170,32 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
             sliver: SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  Row(children: [
-                    _Preset(label: '15 min', active: _sessionLength.inMinutes == 15, onTap: () => _reset(const Duration(minutes: 15))),
-                    const SizedBox(width: 7),
-                    _Preset(label: '25 min', active: _sessionLength.inMinutes == 25, onTap: () => _reset(const Duration(minutes: 25))),
-                    const SizedBox(width: 7),
-                    _Preset(label: '45 min', active: _sessionLength.inMinutes == 45, onTap: () => _reset(const Duration(minutes: 45))),
-                    const SizedBox(width: 7),
-                    _Preset(label: '60 min', active: _sessionLength.inMinutes == 60, onTap: () => _reset(const Duration(minutes: 60))),
-                  ]),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _running ? null : _chooseCustomDuration,
-                      icon: const Icon(Icons.tune_rounded, size: 18),
-                      label: Text('Custom duration · ${_sessionLength.inMinutes} min'),
-                    ),
-                  ),
-                ],
-              ),
+              child: Row(children: [
+                _Preset(label: '15 min', active: _length.inMinutes == 15, onTap: () => _setLength(const Duration(minutes: 15))),
+                const SizedBox(width: 7),
+                _Preset(label: '25 min', active: _length.inMinutes == 25, onTap: () => _setLength(const Duration(minutes: 25))),
+                const SizedBox(width: 7),
+                _Preset(label: '45 min', active: _length.inMinutes == 45, onTap: () => _setLength(const Duration(minutes: 45))),
+                const SizedBox(width: 7),
+                _Preset(label: '60 min', active: _length.inMinutes == 60, onTap: () => _setLength(const Duration(minutes: 60))),
+              ]),
             ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+            sliver: SliverToBoxAdapter(child: OutlinedButton.icon(onPressed: _running ? null : _customLength, icon: const Icon(Icons.tune_rounded), label: Text('Custom duration · ${_length.inMinutes} min'))),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 28, 22, 10),
             sliver: SliverToBoxAdapter(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Choose your task', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 3),
-                        Text('Focus mode works best with one clear target.', style: theme.textTheme.bodySmall),
-                      ],
-                    ),
-                  ),
-                  if (_selectedTaskId != null) TextButton(onPressed: () => setState(() => _selectedTaskId = null), child: const Text('Clear')),
-                ],
-              ),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Choose your task', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), const SizedBox(height: 3), Text('Focus mode works best with one clear target.', style: Theme.of(context).textTheme.bodySmall)])),
+                if (_taskId != null) TextButton(onPressed: () => setState(() => _taskId = null), child: const Text('Clear')),
+              ]),
             ),
           ),
           if (active.isEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 4, 22, 110),
-              sliver: SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(24)),
-                  child: Row(children: [Icon(Icons.inbox_outlined, color: scheme.onSurfaceVariant), const SizedBox(width: 14), Expanded(child: Text('Create an active task and it will appear here.', style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)))]),
-                ),
-              ),
-            )
+            SliverPadding(padding: const EdgeInsets.fromLTRB(22, 4, 22, 110), sliver: SliverToBoxAdapter(child: _EmptyFocus(scheme: scheme)))
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(22, 4, 22, 110),
@@ -265,28 +203,23 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                 itemCount: active.length,
                 itemBuilder: (context, index) {
                   final task = active[index];
-                  final selected = task.id == _selectedTaskId;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    decoration: BoxDecoration(
-                      color: selected ? scheme.primaryContainer.withValues(alpha: .72) : scheme.surface,
-                      borderRadius: BorderRadius.circular(23),
-                      border: Border.all(color: selected ? scheme.primary.withValues(alpha: .45) : scheme.outlineVariant.withValues(alpha: .55), width: selected ? 1.5 : 1),
-                      boxShadow: selected ? [BoxShadow(color: scheme.primary.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 7))] : null,
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                      onTap: () => setState(() => _selectedTaskId = selected ? null : task.id),
-                      leading: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: selected ? scheme.primary : scheme.surfaceContainerHighest, shape: BoxShape.circle),
-                        child: Icon(selected ? Icons.bolt_rounded : Icons.radio_button_unchecked_rounded, color: selected ? scheme.onPrimary : scheme.onSurfaceVariant),
+                  final selectedTask = task.id == _taskId;
+                  return Material(
+                    color: selectedTask ? scheme.primaryContainer.withValues(alpha: .7) : scheme.surface,
+                    borderRadius: BorderRadius.circular(22),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(22),
+                      onTap: () => setState(() => _taskId = selectedTask ? null : task.id),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), border: Border.all(color: selectedTask ? scheme.primary : scheme.outlineVariant)),
+                        child: Row(children: [
+                          CircleAvatar(backgroundColor: selectedTask ? scheme.primary : scheme.surfaceContainerHighest, child: Icon(selectedTask ? Icons.bolt_rounded : Icons.radio_button_unchecked_rounded, color: selectedTask ? scheme.onPrimary : scheme.onSurfaceVariant)),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+                          Icon(selectedTask ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: selectedTask ? scheme.primary : scheme.onSurfaceVariant),
+                        ]),
                       ),
-                      title: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: task.dueAt == null ? (task.category.isEmpty ? null : Text(task.category)) : Text(task.category.isEmpty ? TimeOfDay.fromDateTime(task.dueAt!).format(context) : '${task.category} • ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}'),
-                      trailing: Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: selected ? scheme.primary : scheme.onSurfaceVariant),
                     ),
                   );
                 },
@@ -304,15 +237,18 @@ class _Preset extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(backgroundColor: active ? scheme.primaryContainer : null, foregroundColor: active ? scheme.primary : null, side: BorderSide(color: active ? scheme.primary.withValues(alpha: .35) : scheme.outlineVariant), padding: const EdgeInsets.symmetric(vertical: 13)),
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
-      ),
-    );
+    return Expanded(child: OutlinedButton(onPressed: onTap, style: OutlinedButton.styleFrom(backgroundColor: active ? scheme.primaryContainer : null, foregroundColor: active ? scheme.primary : null, side: BorderSide(color: active ? scheme.primary : scheme.outlineVariant), padding: const EdgeInsets.symmetric(vertical: 13)), child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))));
   }
+}
+
+class _EmptyFocus extends StatelessWidget {
+  const _EmptyFocus({required this.scheme});
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(24)), child: Row(children: [Icon(Icons.inbox_outlined, color: scheme.onSurfaceVariant), const SizedBox(width: 14), Expanded(child: Text('Create an active task and it will appear here.', style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)))]));
 }
