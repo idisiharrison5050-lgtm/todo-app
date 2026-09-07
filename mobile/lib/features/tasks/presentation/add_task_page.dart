@@ -164,7 +164,23 @@ class _AddTaskPageState extends State<AddTaskPage> {
             if (_repeat == TaskRepeat.custom) ...[const SizedBox(height: 10), TextField(controller: _customDaysController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Repeat every N days', prefixIcon: Icon(Icons.timelapse_rounded)))],
             const SizedBox(height: 12), TextField(controller: _categoryController, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'List / category', hintText: 'Work, Personal, Study', prefixIcon: Icon(Icons.folder_outlined))),
             const SizedBox(height: 12), TextField(controller: _tagController, textInputAction: TextInputAction.done, onSubmitted: (_) => _addTag(), decoration: const InputDecoration(labelText: 'Add tag', hintText: 'work, study, personal', prefixIcon: Icon(Icons.tag), suffixIcon: Icon(Icons.add_rounded))),
-            if (_tags.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Wrap(spacing: 6, runSpacing: 6, children: [for (final tag in _tags) InputChip(label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag))]))],
+            if (_tags.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final tag in _tags)
+                      InputChip(
+                        label: Text(tag),
+                        onDeleted: () => setState(() => _tags.remove(tag)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Favorite', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Keep this task close at hand'), value: _favorite, onChanged: (value) => setState(() => _favorite = value)),
           ],
         ])),
