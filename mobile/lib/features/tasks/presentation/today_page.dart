@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../application/task_store.dart';
 import '../domain/task.dart';
 import 'add_task_page.dart';
+import 'quick_add_sheet.dart';
 
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key, required this.store});
@@ -91,7 +92,11 @@ class _TodayContent extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTaskPage(store: store))), icon: const Icon(Icons.add), label: const Text('Add task')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showQuickAddTask(context, store),
+        icon: const Icon(Icons.bolt_rounded),
+        label: const Text('Quick add'),
+      ),
     );
   }
 
