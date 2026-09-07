@@ -15,3 +15,4 @@ analyzer:
 linter:
   rules:
     unnecessary_underscores: false
+    use_null_aware_elements: false
