@@ -7,6 +7,7 @@ Future<void> showQuickAddTask(BuildContext context, TaskStore store) async {
   DateTime? dueAt;
   TaskPriority priority = TaskPriority.normal;
   bool reminder = false;
+  bool saving = false;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -15,8 +16,6 @@ Future<void> showQuickAddTask(BuildContext context, TaskStore store) async {
     builder: (sheetContext) {
       return StatefulBuilder(
         builder: (context, setState) {
-          bool saving = false;
-
           Future<void> save() async {
             if (saving) return;
             final title = controller.text.trim();
@@ -58,14 +57,11 @@ Future<void> showQuickAddTask(BuildContext context, TaskStore store) async {
                   const SizedBox(height: 18),
                   TextField(controller: controller, autofocus: true, enabled: !saving, textCapitalization: TextCapitalization.sentences, textInputAction: TextInputAction.done, onSubmitted: (_) => save(), decoration: const InputDecoration(hintText: 'What needs to get done?', prefixIcon: Icon(Icons.bolt_rounded))),
                   const SizedBox(height: 13),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: [
-                      _QuickChip(label: 'In 15 min', onTap: () => setDue(const Duration(minutes: 15)), selected: _isApprox(dueAt, const Duration(minutes: 15))),
-                      _QuickChip(label: 'In 1 hour', onTap: () => setDue(const Duration(hours: 1)), selected: _isApprox(dueAt, const Duration(hours: 1))),
-                      _QuickChip(label: 'Tomorrow 9 AM', onTap: setTomorrow, selected: tomorrowSelected),
-                    ]),
-                  ),
+                  SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
+                    _QuickChip(label: 'In 15 min', onTap: () => setDue(const Duration(minutes: 15)), selected: _isApprox(dueAt, const Duration(minutes: 15))),
+                    _QuickChip(label: 'In 1 hour', onTap: () => setDue(const Duration(hours: 1)), selected: _isApprox(dueAt, const Duration(hours: 1))),
+                    _QuickChip(label: 'Tomorrow 9 AM', onTap: setTomorrow, selected: tomorrowSelected),
+                  ])),
                   const SizedBox(height: 8),
                   Row(children: [
                     Expanded(child: ChoiceChip(label: const Text('Normal'), selected: priority == TaskPriority.normal, onSelected: saving ? null : (_) => setState(() => priority = TaskPriority.normal))),
@@ -100,14 +96,7 @@ class _QuickChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ActionChip(
-        avatar: selected ? Icon(Icons.check_rounded, size: 16, color: scheme.primary) : null,
-        label: Text(label),
-        onPressed: onTap,
-      ),
-    );
+    return Padding(padding: const EdgeInsets.only(right: 8), child: ActionChip(avatar: selected ? Icon(Icons.check_rounded, size: 16, color: scheme.primary) : null, label: Text(label), onPressed: onTap));
   }
 }
 
