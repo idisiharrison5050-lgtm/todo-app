@@ -136,7 +136,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const SizedBox(height: 6), Text(widget.isEditing ? 'Update the details and keep your plan moving.' : 'Capture it now. Organize the details when you need them.', style: theme.textTheme.bodyMedium),
         const SizedBox(height: 24),
         _SurfaceSection(child: Column(children: [
-          TextField(controller: _titleController, autofocus: !widget.isEditing, textCapitalization: TextCapitalization.sentences, textInputAction: TextInputAction.next, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), decoration: const InputDecoration(hintText: 'Task name', prefixIcon: Icon(Icons.check_circle_outline)),
+          TextField(controller: _titleController, autofocus: !widget.isEditing, textCapitalization: TextCapitalization.sentences, textInputAction: TextInputAction.next, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), decoration: const InputDecoration(hintText: 'Task name', prefixIcon: Icon(Icons.check_circle_outline))),
           const SizedBox(height: 12), TextField(controller: _notesController, minLines: 2, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(hintText: 'Add a note (optional)', prefixIcon: Icon(Icons.notes_outlined))),
         ])),
         const SizedBox(height: 20), const _SectionHeading(icon: Icons.schedule_rounded, title: 'When', subtitle: 'Set a moment or leave it open-ended.'), const SizedBox(height: 10),
@@ -164,7 +164,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             if (_repeat == TaskRepeat.custom) ...[const SizedBox(height: 10), TextField(controller: _customDaysController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Repeat every N days', prefixIcon: Icon(Icons.timelapse_rounded)))],
             const SizedBox(height: 12), TextField(controller: _categoryController, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'List / category', hintText: 'Work, Personal, Study', prefixIcon: Icon(Icons.folder_outlined))),
             const SizedBox(height: 12), TextField(controller: _tagController, textInputAction: TextInputAction.done, onSubmitted: (_) => _addTag(), decoration: const InputDecoration(labelText: 'Add tag', hintText: 'work, study, personal', prefixIcon: Icon(Icons.tag), suffixIcon: Icon(Icons.add_rounded))),
-            if (_tags.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Wrap(spacing: 6, runSpacing: 6, children: [for (final tag in _tags) InputChip(label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag)))]))],
+            if (_tags.isNotEmpty) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: Wrap(spacing: 6, runSpacing: 6, children: [for (final tag in _tags) InputChip(label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag))]))],
             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Favorite', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Keep this task close at hand'), value: _favorite, onChanged: (value) => setState(() => _favorite = value)),
           ],
         ])),
