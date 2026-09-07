@@ -79,7 +79,7 @@ class _ScheduleBanner extends StatelessWidget {
       final absolute = difference.abs();
       final hours = absolute.inHours;
       final minutes = absolute.inMinutes.remainder(60);
-      final relative = hours > 0 ? '$hours h ${minutes} min' : '${minutes.clamp(1, 59)} min';
+      final relative = hours > 0 ? '$hours h $minutes min' : '${minutes.clamp(1, 59)} min';
       headline = overdue ? 'Needs attention' : 'Scheduled';
       detail = overdue ? 'Overdue by $relative' : 'Due in $relative · ${TimeOfDay.fromDateTime(due).format(context)}';
     }
