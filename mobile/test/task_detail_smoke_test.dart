@@ -29,7 +29,6 @@ void main() {
       title: 'Ship the new experience',
       notes: 'Review the final details before release.',
       dueAt: DateTime.now().add(const Duration(hours: 2)),
-      reminderType: TaskReminderType.once,
       priority: TaskPriority.high,
       category: 'Product',
       tags: const ['release', 'ui'],
@@ -41,7 +40,7 @@ void main() {
         home: TaskDetailPage(store: store, task: task),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
     expect(find.text('Ship the new experience'), findsOneWidget);
     expect(find.text('Edit task details'), findsOneWidget);
@@ -52,7 +51,7 @@ void main() {
     expect(find.text('Complete task'), findsOneWidget);
 
     await tester.tap(find.text('Edit task details'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
     expect(find.text('Edit task'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
 
