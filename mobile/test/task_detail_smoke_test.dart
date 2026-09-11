@@ -65,17 +65,17 @@ void main() {
     );
     expect(find.text('Complete task'), findsOneWidget);
 
-    final editButton = find.widgetWithText(
-      OutlinedButton,
-      'Edit task details',
-    );
-    expect(editButton, findsOneWidget);
     await tester.scrollUntilVisible(
-      editButton,
+      find.text('Ship the new experience'),
       -400,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
+
+    final editButton = find.widgetWithText(
+      OutlinedButton,
+      'Edit task details',
+    );
     expect(editButton, findsOneWidget);
     await tester.tap(editButton);
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
