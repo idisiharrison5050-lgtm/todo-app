@@ -48,11 +48,21 @@ void main() {
     expect(find.text('Ship the new experience'), findsOneWidget);
     expect(find.text('Edit task details'), findsOneWidget);
     expect(find.text('Notes'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Checklist'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Checklist'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
     expect(find.text('High priority'), findsOneWidget);
     expect(find.text('Complete task'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Edit task details'),
+      -400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Edit task details'));
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
     expect(find.text('Edit task'), findsOneWidget);
