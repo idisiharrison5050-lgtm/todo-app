@@ -65,18 +65,14 @@ void main() {
     );
     expect(find.text('Complete task'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Edit task details'),
-      -400,
-      scrollable: find.byType(Scrollable).first,
+    final editButton = find.ancestor(
+      of: find.text('Edit task details'),
+      matching: find.byType(OutlinedButton),
     );
-    await tester.drag(
-      find.byType(Scrollable).first,
-      const Offset(0, 160),
-      warnIfMissed: false,
-    );
+    await tester.ensureVisible(editButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Edit task details'));
+    expect(editButton, findsOneWidget);
+    await tester.tap(editButton);
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
     expect(find.text('Edit task'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
