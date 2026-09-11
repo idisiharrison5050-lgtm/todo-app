@@ -70,6 +70,12 @@ void main() {
       -400,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, 160),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Edit task details'));
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
     expect(find.text('Edit task'), findsOneWidget);
