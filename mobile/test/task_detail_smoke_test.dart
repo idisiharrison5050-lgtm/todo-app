@@ -57,6 +57,12 @@ void main() {
     );
     expect(find.text('Checklist'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Complete task'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Complete task'), findsOneWidget);
 
     await tester.scrollUntilVisible(
