@@ -65,11 +65,16 @@ void main() {
     );
     expect(find.text('Complete task'), findsOneWidget);
 
-    final editButton = find.ancestor(
-      of: find.text('Edit task details'),
-      matching: find.byType(OutlinedButton),
+    final editButton = find.widgetWithText(
+      OutlinedButton,
+      'Edit task details',
     );
-    await tester.ensureVisible(editButton);
+    expect(editButton, findsOneWidget);
+    await tester.scrollUntilVisible(
+      editButton,
+      -400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     expect(editButton, findsOneWidget);
     await tester.tap(editButton);
