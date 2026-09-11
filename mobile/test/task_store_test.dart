@@ -8,11 +8,15 @@ import 'package:todo_mobile/features/tasks/domain/task.dart';
 class FakeReminderScheduler implements ReminderScheduler {
   final List<String> scheduled = <String>[];
   final List<String> cancelled = <String>[];
-  @override Future<bool> requestPermission() async => true;
+  bool notificationsEnabled = true;
+  int permissionRequests = 0;
+  int cancelAllCalls = 0;
+  @override Future<bool> areNotificationsEnabled() async => notificationsEnabled;
+  @override Future<bool> requestPermission() async { permissionRequests++; return notificationsEnabled; }
   @override Future<void> schedule(Task task) async => scheduled.add(task.id);
   @override Future<void> snooze(Task task, int minutes) async {}
   @override Future<void> cancel(String taskId) async => cancelled.add(taskId);
-  @override Future<void> cancelAll() async {}
+  @override Future<void> cancelAll() async { cancelAllCalls++; }
 }
 
 void main() {
@@ -39,6 +43,20 @@ void main() {
     final savedId = first.tasks.single.id; first.dispose(); reminders.scheduled.clear();
     final second = TaskStore(repository: repository, reminderScheduler: reminders); await second.load();
     expect(second.tasks, hasLength(1)); expect(second.tasks.single.title, 'Persistent task'); expect(reminders.scheduled, contains(savedId)); second.dispose();
+  });
+
+  test('startup does not request permission or erase reminders when notifications are disabled', () async {
+    final repository = MemoryTaskRepository();
+    final first = TaskStore(repository: repository, reminderScheduler: FakeReminderScheduler());
+    await first.addTask(title: 'Keep existing schedule', dueAt: DateTime.now().add(const Duration(hours: 1)), reminderType: TaskReminderType.once);
+    first.dispose();
+    final reminders = FakeReminderScheduler()..notificationsEnabled = false;
+    final restored = TaskStore(repository: repository, reminderScheduler: reminders);
+    await restored.load();
+    expect(reminders.permissionRequests, 0);
+    expect(reminders.cancelAllCalls, 0);
+    expect(reminders.scheduled, isEmpty);
+    restored.dispose();
   });
 
   test('does not restore reminders for completed tasks', () async {

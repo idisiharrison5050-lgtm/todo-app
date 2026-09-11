@@ -8,6 +8,9 @@ import 'package:todo_mobile/features/tasks/presentation/task_detail_page.dart';
 
 class _FakeReminderScheduler implements ReminderScheduler {
   @override
+  Future<bool> areNotificationsEnabled() async => true;
+
+  @override
   Future<bool> requestPermission() async => true;
   @override
   Future<void> schedule(Task task) async {}

@@ -285,8 +285,19 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> _restoreReminders() async {
-    // Native alarms survive process death. Rebuild the native schedule from
-    // the current task repository so deleted tasks can never remain scheduled.
+    final tasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false);
+    if (tasks.isEmpty) return;
+
+    // Never request POST_NOTIFICATIONS while the app is starting. On Android
+    // that prompt can otherwise appear before onboarding explains it; a
+    // rejection then causes the old implementation to cancel every pending
+    // reminder and leave none to restore. Permission is requested only from a
+    // user-initiated reminder save below.
+    if (!await _reminderScheduler.areNotificationsEnabled()) return;
+
+    // Native alarms survive process death. Once notifications are known to be
+    // available, rebuild the native schedule from the current task repository
+    // so deleted tasks cannot remain scheduled.
     try {
       await _reminderScheduler.cancelAll();
     } catch (_) {
@@ -297,10 +308,6 @@ class TaskStore extends ChangeNotifier {
       }
     }
 
-    final tasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false);
-    if (tasks.isEmpty) return;
-    final permitted = await _reminderScheduler.requestPermission();
-    if (!permitted && !kIsWeb) return;
     for (final task in tasks) {
       await _reminderScheduler.schedule(task);
     }

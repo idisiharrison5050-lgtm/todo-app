@@ -3,6 +3,10 @@ import '../domain/reminder_schedule.dart';
 import '../../tasks/domain/task.dart';
 
 abstract interface class ReminderScheduler {
+  /// Checks the current operating-system notification setting without showing
+  /// a permission prompt. This keeps startup reconciliation from consuming
+  /// Android's POST_NOTIFICATIONS prompt before onboarding explains it.
+  Future<bool> areNotificationsEnabled();
   Future<bool> requestPermission();
   Future<void> schedule(Task task);
   Future<void> snooze(Task task, int minutes);
@@ -30,6 +34,9 @@ class LocalReminderScheduler implements ReminderScheduler {
     }
     return hash == 0 ? 1 : hash;
   }
+
+  @override
+  Future<bool> areNotificationsEnabled() => _notifications.areNotificationsEnabled();
 
   @override
   Future<bool> requestPermission() => _notifications.requestPermissions();
@@ -110,6 +117,7 @@ class LocalReminderScheduler implements ReminderScheduler {
 
 /// Keeps tests and unsupported platforms independent from native notification APIs.
 class NoopReminderScheduler implements ReminderScheduler {
+  @override Future<bool> areNotificationsEnabled() async => false;
   @override
   Future<bool> requestPermission() async => false;
 

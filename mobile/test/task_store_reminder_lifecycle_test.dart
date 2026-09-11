@@ -10,6 +10,9 @@ class RecordingReminderScheduler implements ReminderScheduler {
   final List<String> cancelled = <String>[];
 
   @override
+  Future<bool> areNotificationsEnabled() async => true;
+
+  @override
   Future<bool> requestPermission() async => true;
 
   @override
