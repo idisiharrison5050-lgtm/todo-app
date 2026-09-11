@@ -67,32 +67,10 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
   }
 
   Future<void> _customLength() async {
-    final controller = TextEditingController(text: _length.inMinutes.toString());
     final minutes = await showDialog<int>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Custom focus session'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Minutes', suffixText: 'min'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text.trim());
-              if (value != null && value >= 5 && value <= 180) {
-                Navigator.pop(dialogContext, value);
-              }
-            },
-            child: const Text('Set session'),
-          ),
-        ],
-      ),
+      builder: (dialogContext) => _CustomFocusDialog(initialMinutes: _length.inMinutes),
     );
-    controller.dispose();
     if (minutes != null && mounted) {
       _setLength(Duration(minutes: minutes));
     }
@@ -269,6 +247,65 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _CustomFocusDialog extends StatefulWidget {
+  const _CustomFocusDialog({required this.initialMinutes});
+  final int initialMinutes;
+
+  @override
+  State<_CustomFocusDialog> createState() => _CustomFocusDialogState();
+}
+
+class _CustomFocusDialogState extends State<_CustomFocusDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialMinutes.toString());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = int.tryParse(_controller.text.trim());
+    if (value != null && value >= 5 && value <= 180) {
+      Navigator.of(context).pop(value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Custom focus session'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _submit(),
+        decoration: const InputDecoration(
+          labelText: 'Minutes',
+          suffixText: 'min',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Set session'),
+        ),
+      ],
     );
   }
 }
