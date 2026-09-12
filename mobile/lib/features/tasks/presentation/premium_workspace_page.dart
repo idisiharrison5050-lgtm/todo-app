@@ -126,7 +126,10 @@ class _Today extends StatelessWidget {
     final active = all.where((task) => !task.isCompleted).toList();
     final today = active.where((task) {
       final due = task.dueAt;
-      return due != null && due.year == now.year && due.month == now.month && due.day == now.day;
+      if (due == null) return false;
+      final isToday = due.year == now.year && due.month == now.month && due.day == now.day;
+      final isOverdue = due.isBefore(now);
+      return isToday || isOverdue;
     }).toList()
       ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
 
