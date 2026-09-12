@@ -100,8 +100,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   Future<void> _customReminderInterval() async {
-    final controller = TextEditingController(text: _interval?.inMinutes.toString() ?? '120');
-    String unit = 'minutes';
+    final current = _interval ?? const Duration(hours: 2);
+    String unit;
+    String amountText;
+    if (current.inDays > 0 && current.inHours % 24 == 0) {
+      unit = 'days';
+      amountText = current.inDays.toString();
+    } else if (current.inHours > 0 && current.inMinutes % 60 == 0) {
+      unit = 'hours';
+      amountText = current.inHours.toString();
+    } else {
+      unit = 'minutes';
+      amountText = current.inMinutes.toString();
+    }
+    final controller = TextEditingController(text: amountText);
     final result = await showDialog<Duration>(
       context: context,
       builder: (dialogContext) {
@@ -247,24 +259,28 @@ class _AddTaskPageState extends State<AddTaskPage> {
     ];
 
     if (_reminderType == TaskReminderType.interval) {
-      final intervalLabel = _formatReminderInterval(_interval ?? const Duration(hours: 2));
+      final presetIntervals = <Duration>[
+        const Duration(minutes: 30),
+        const Duration(hours: 1),
+        const Duration(hours: 2),
+        const Duration(hours: 4),
+      ];
+      final currentInterval = _interval ?? const Duration(hours: 2);
+      final custom = !presetIntervals.contains(currentInterval);
+      final intervalItems = <DropdownMenuItem<Duration>>[
+        const DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')),
+        const DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')),
+        const DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')),
+        const DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
+        if (custom) DropdownMenuItem(value: currentInterval, child: Text(_formatReminderInterval(currentInterval))),
+      ];
       children.addAll([
         const SizedBox(height: 10),
         _PremiumDropdown<Duration>(
-          value: _interval,
-          items: [
-            const DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')),
-            const DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')),
-            const DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')),
-            const DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
-            DropdownMenuItem(value: _interval, child: Text(intervalLabel)),
-          ],
-          onChanged: (v) async {
-            if (v == _interval && !const [Duration(minutes: 30), Duration(hours: 1), Duration(hours: 2), Duration(hours: 4)].contains(v)) {
-              await _customReminderInterval();
-            } else if (v != null) {
-              setState(() => _interval = v);
-            }
+          value: currentInterval,
+          items: intervalItems,
+          onChanged: (v) {
+            if (v != null) setState(() => _interval = v);
           },
         ),
         const SizedBox(height: 8),
