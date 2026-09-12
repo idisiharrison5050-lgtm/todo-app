@@ -88,9 +88,15 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
     setState(() => _saving = true);
     try {
+      // Quick Capture is intended to put a new task straight into the
+      // Today/Calendar workflow. If the user did not choose a schedule,
+      // give it a near-term due time today instead of creating an
+      // unscheduled task that is invisible in both date-based views.
+      final dueAt = _dueAt ?? DateTime.now().add(const Duration(minutes: 15));
+
       await widget.store.addTask(
         title: title,
-        dueAt: _dueAt,
+        dueAt: dueAt,
         reminderType: _reminder ? TaskReminderType.once : TaskReminderType.none,
         priority: _priority,
       );
