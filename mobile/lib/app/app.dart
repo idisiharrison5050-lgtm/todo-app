@@ -167,20 +167,7 @@ class _TodoAppState extends State<TodoApp> {
       );
 
   Future<void> _logout() async {
-    final context = _navigatorKey.currentContext;
-    if (context == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You will stay logged out until you sign in again. Reminders already scheduled on this device will continue to work.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Log out')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    if (!mounted || !_authStore.hasSession) return;
     _taskStore.clearForLogout();
     await _authStore.logout();
     if (mounted) setState(() {});
