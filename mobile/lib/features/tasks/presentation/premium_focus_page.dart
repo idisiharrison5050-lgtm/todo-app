@@ -80,7 +80,16 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final active = widget.store.tasks.where((task) => !task.isCompleted).toList();
+    final active = widget.store.tasks.where((task) => !task.isCompleted).toList()
+      ..sort((a, b) {
+        final aOverdue = a.dueAt != null && a.dueAt!.isBefore(DateTime.now());
+        final bOverdue = b.dueAt != null && b.dueAt!.isBefore(DateTime.now());
+        if (aOverdue != bOverdue) return aOverdue ? -1 : 1;
+        if (a.dueAt == null && b.dueAt == null) return 0;
+        if (a.dueAt == null) return 1;
+        if (b.dueAt == null) return -1;
+        return a.dueAt!.compareTo(b.dueAt!);
+      });
     final progress = _length.inSeconds == 0 ? 0.0 : 1 - (_remaining.inSeconds / _length.inSeconds).clamp(0.0, 1.0);
     final mm = _remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
     final ss = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -221,6 +230,9 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                 itemBuilder: (context, index) {
                   final task = active[index];
                   final selectedTask = task.id == _taskId;
+                  final isOverdue = task.dueAt != null && task.dueAt!.isBefore(DateTime.now());
+                  final borderColor = selectedTask ? scheme.primary : (isOverdue ? scheme.error : scheme.outlineVariant);
+                  final iconColor = selectedTask ? scheme.onPrimary : (isOverdue ? scheme.error : scheme.onSurfaceVariant);
                   return Material(
                     color: selectedTask ? scheme.primaryContainer.withValues(alpha: .7) : scheme.surface,
                     borderRadius: BorderRadius.circular(22),
@@ -229,12 +241,36 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                       onTap: () => setState(() => _taskId = selectedTask ? null : task.id),
                       child: Container(
                         padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), border: Border.all(color: selectedTask ? scheme.primary : scheme.outlineVariant)),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), border: Border.all(color: borderColor, width: isOverdue && !selectedTask ? 1.5 : 1)),
                         child: Row(
                           children: [
-                            CircleAvatar(backgroundColor: selectedTask ? scheme.primary : scheme.surfaceContainerHighest, child: Icon(selectedTask ? Icons.bolt_rounded : Icons.radio_button_unchecked_rounded, color: selectedTask ? scheme.onPrimary : scheme.onSurfaceVariant)),
+                            CircleAvatar(backgroundColor: selectedTask ? scheme.primary : (isOverdue ? scheme.errorContainer : scheme.surfaceContainerHighest), child: Icon(selectedTask ? Icons.bolt_rounded : (isOverdue ? Icons.warning_amber_rounded : Icons.radio_button_unchecked_rounded), color: iconColor)),
                             const SizedBox(width: 12),
-                            Expanded(child: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                  if (task.dueAt != null) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        if (isOverdue) ...[
+                                          Icon(Icons.warning_amber_rounded, size: 13, color: scheme.error),
+                                          const SizedBox(width: 4),
+                                          Text('Overdue', style: TextStyle(fontSize: 11.5, color: scheme.error, fontWeight: FontWeight.w900)),
+                                          const SizedBox(width: 5),
+                                        ],
+                                        Text(
+                                          TimeOfDay.fromDateTime(task.dueAt!).format(context),
+                                          style: TextStyle(fontSize: 11.5, color: isOverdue ? scheme.error : scheme.onSurfaceVariant, fontWeight: FontWeight.w700),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                             Icon(selectedTask ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: selectedTask ? scheme.primary : scheme.onSurfaceVariant),
                           ],
                         ),
