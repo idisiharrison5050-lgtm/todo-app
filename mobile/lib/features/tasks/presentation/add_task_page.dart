@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../application/task_store.dart';
 import '../domain/task.dart';
+import 'wheel_time_picker.dart';
 
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({super.key, required this.store, this.task});
@@ -67,7 +68,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
     if (date == null || !mounted) return;
     final initial = _dueAt ?? DateTime(date.year, date.month, date.day, 9);
-    final time = await showTimePicker(
+    final time = await WheelTimePicker.show(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
