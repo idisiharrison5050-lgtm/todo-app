@@ -58,159 +58,164 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final selectedTasks = _tasksFor(_selected);
-    final monthTasks = widget.store.tasks.where((task) {
-      final due = task.dueAt;
-      return due != null && due.year == _month.year && due.month == _month.month;
-    }).toList();
-    final completed = selectedTasks.where((task) => task.isCompleted).length;
+    return AnimatedBuilder(
+      animation: widget.store,
+      builder: (context, _) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final selectedTasks = _tasksFor(_selected);
+        final monthTasks = widget.store.tasks.where((task) {
+          final due = task.dueAt;
+          return due != null && due.year == _month.year && due.month == _month.month;
+        }).toList();
+        final completed = selectedTasks.where((task) => task.isCompleted).length;
 
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    Expanded(
+        return Scaffold(
+          body: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PLAN YOUR TIME',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  letterSpacing: 1.5,
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text('Calendar', style: theme.textTheme.displaySmall),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _today,
+                          icon: const Icon(Icons.today_rounded, size: 17),
+                          label: const Text('Today'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(16, 17, 16, 18),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'PLAN YOUR TIME',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              letterSpacing: 1.5,
-                              color: scheme.primary,
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () => _shiftMonth(-1),
+                                icon: const Icon(Icons.chevron_left_rounded),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  _monthLabel(_month),
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _shiftMonth(1),
+                                icon: const Icon(Icons.chevron_right_rounded),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const _WeekHeader(),
+                          const SizedBox(height: 8),
+                          _MonthGrid(
+                            month: _month,
+                            selected: _selected,
+                            tasksFor: _tasksFor,
+                            onSelected: (day) => setState(() => _selected = day),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(22, 25, 22, 12),
+                  sliver: SliverToBoxAdapter(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _agendaLabel(_selected),
+                            style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          const SizedBox(height: 5),
-                          Text('Calendar', style: theme.textTheme.displaySmall),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _today,
-                      icon: const Icon(Icons.today_rounded, size: 17),
-                      label: const Text('Today'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
-              sliver: SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(16, 17, 16, 18),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: scheme.outlineVariant),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => _shiftMonth(-1),
-                            icon: const Icon(Icons.chevron_left_rounded),
-                          ),
-                          Expanded(
-                            child: Text(
-                              _monthLabel(_month),
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w900,
-                              ),
+                        ),
+                        if (selectedTasks.isNotEmpty)
+                          Text(
+                            '$completed/${selectedTasks.length} done',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => _shiftMonth(1),
-                            icon: const Icon(Icons.chevron_right_rounded),
+                      ],
+                    ),
+                  ),
+                ),
+                if (selectedTasks.isEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(22, 4, 22, 120),
+                    sliver: SliverToBoxAdapter(
+                      child: _EmptyDay(
+                        onAdd: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AddTaskPage(store: widget.store),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const _WeekHeader(),
-                      const SizedBox(height: 8),
-                      _MonthGrid(
-                        month: _month,
-                        selected: _selected,
-                        tasksFor: _tasksFor,
-                        onSelected: (day) => setState(() => _selected = day),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 25, 22, 12),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _agendaLabel(_selected),
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                    if (selectedTasks.isNotEmpty)
-                      Text(
-                        '$completed/${selectedTasks.length} done',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 120),
+                    sliver: SliverList.separated(
+                      itemCount: selectedTasks.length,
+                      itemBuilder: (_, index) => _AgendaCard(
+                        task: selectedTasks[index],
+                        store: widget.store,
                       ),
-                  ],
-                ),
-              ),
-            ),
-            if (selectedTasks.isEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(22, 4, 22, 120),
-                sliver: SliverToBoxAdapter(
-                  child: _EmptyDay(
-                    onAdd: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AddTaskPage(store: widget.store),
-                      ),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    ),
+                  ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 120),
+                  sliver: SliverToBoxAdapter(
+                    child: Text(
+                      '${monthTasks.length} scheduled ${monthTasks.length == 1 ? 'task' : 'tasks'} this month',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
                     ),
                   ),
                 ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 120),
-                sliver: SliverList.separated(
-                  itemCount: selectedTasks.length,
-                  itemBuilder: (_, index) => _AgendaCard(
-                    task: selectedTasks[index],
-                    store: widget.store,
-                  ),
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                ),
-              ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 120),
-              sliver: SliverToBoxAdapter(
-                child: Text(
-                  '${monthTasks.length} scheduled ${monthTasks.length == 1 ? 'task' : 'tasks'} this month',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -335,6 +340,9 @@ class _MonthGrid extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: tasks.take(3).map<Widget>((task) {
+                        final isOverdue = !task.isCompleted &&
+                            task.dueAt != null &&
+                            task.dueAt!.isBefore(DateTime.now());
                         return Container(
                           width: 3.5,
                           height: 3.5,
@@ -342,7 +350,7 @@ class _MonthGrid extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? scheme.onPrimary
-                                : _priorityColor(task, scheme),
+                                : (isOverdue ? scheme.error : _priorityColor(task, scheme)),
                             shape: BoxShape.circle,
                           ),
                         );
@@ -377,7 +385,12 @@ class _AgendaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = task.priority == TaskPriority.high ? scheme.error : scheme.primary;
+    final isOverdue = !task.isCompleted &&
+        task.dueAt != null &&
+        task.dueAt!.isBefore(DateTime.now());
+    final accent = isOverdue
+        ? scheme.error
+        : (task.priority == TaskPriority.high ? scheme.error : scheme.primary);
 
     return Material(
       color: scheme.surface,
@@ -393,7 +406,10 @@ class _AgendaCard extends StatelessWidget {
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(23),
-            border: Border.all(color: scheme.outlineVariant),
+            border: Border.all(
+              color: isOverdue ? scheme.error : scheme.outlineVariant,
+              width: isOverdue ? 1.5 : 1,
+            ),
           ),
           child: Row(
             children: [
@@ -404,16 +420,16 @@ class _AgendaCard extends StatelessWidget {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: task.isCompleted ? accent : Colors.transparent,
+                    color: task.isCompleted ? accent : (isOverdue ? scheme.errorContainer : Colors.transparent),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: task.isCompleted ? accent : scheme.outline,
+                      color: task.isCompleted ? accent : (isOverdue ? scheme.error : scheme.outline),
                       width: 2,
                     ),
                   ),
                   child: task.isCompleted
                       ? Icon(Icons.check_rounded, color: scheme.onPrimary, size: 18)
-                      : null,
+                      : (isOverdue ? Icon(Icons.warning_amber_rounded, color: scheme.error, size: 17) : null),
                 ),
               ),
               const SizedBox(width: 13),
@@ -438,8 +454,10 @@ class _AgendaCard extends StatelessWidget {
                       children: [
                         if (task.dueAt != null)
                           _Meta(
-                            icon: Icons.schedule_rounded,
-                            text: TimeOfDay.fromDateTime(task.dueAt!).format(context),
+                            icon: isOverdue ? Icons.warning_amber_rounded : Icons.schedule_rounded,
+                            text: isOverdue
+                                ? 'Overdue · ${TimeOfDay.fromDateTime(task.dueAt!).format(context)}'
+                                : TimeOfDay.fromDateTime(task.dueAt!).format(context),
                             color: accent,
                           ),
                         if (task.category.isNotEmpty)
