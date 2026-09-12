@@ -34,12 +34,34 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
     super.dispose();
   }
 
-  void _toggle() {
+  Future<void> _toggle() async {
     if (_running) {
       _timer?.cancel();
       setState(() => _running = false);
       return;
     }
+
+    if (_taskId == null) {
+      final startWithoutTask = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('No task selected'),
+          content: const Text('Choose a task to focus on before starting a session, or continue without a task if this is simply a free-form focus session.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Choose a task'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Start without a task'),
+            ),
+          ],
+        ),
+      );
+      if (startWithoutTask != true || !mounted) return;
+    }
+
     setState(() => _running = true);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_remaining.inSeconds <= 1) {
@@ -442,7 +464,7 @@ class _CustomFocusDialogState extends State<_CustomFocusDialog> {
 
   void _submit() {
     final value = int.tryParse(_controller.text.trim());
-    if (value != null && value >= 5 && value <= 180) {
+    if (value != null && value >= 1) {
       Navigator.of(context).pop(value);
     }
   }
@@ -460,6 +482,7 @@ class _CustomFocusDialogState extends State<_CustomFocusDialog> {
         decoration: const InputDecoration(
           labelText: 'Minutes',
           suffixText: 'min',
+          helperText: 'Enter any duration from 1 minute upward.',
         ),
       ),
       actions: [
