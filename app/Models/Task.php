@@ -8,14 +8,21 @@ class Task extends Model
 {
     protected $fillable = [
         'user_id',
+        'client_id',
         'title',
         'completed',
+        'payload',
+        'client_updated_at',
+        'sync_version',
     ];
 
     protected function casts(): array
     {
         return [
             'completed' => 'boolean',
+            'payload' => 'array',
+            'client_updated_at' => 'datetime',
+            'sync_version' => 'integer',
         ];
     }
 

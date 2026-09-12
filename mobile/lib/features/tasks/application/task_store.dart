@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:uuid/uuid.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../reminders/application/reminder_scheduler.dart';
+import '../data/connectivity_sync_manager.dart';
+import '../data/syncing_task_repository.dart';
 import '../data/task_repository.dart';
 import '../data/task_repository_factory.dart';
 import '../domain/task.dart';
@@ -9,12 +15,18 @@ import '../domain/task.dart';
 class TaskStore extends ChangeNotifier {
   TaskStore({TaskRepository? repository, ReminderScheduler? reminderScheduler})
       : _repository = repository ?? createTaskRepository(),
-        _reminderScheduler = reminderScheduler ?? _createReminderScheduler();
+        _reminderScheduler = reminderScheduler ?? _createReminderScheduler() {
+    if (_repository is SyncingTaskRepository) {
+      _connectivitySyncManager = ConnectivitySyncManager(_repository)..start();
+    }
+  }
 
   static const Uuid _uuid = Uuid();
   final TaskRepository _repository;
   final ReminderScheduler _reminderScheduler;
   final List<Task> _tasks = <Task>[];
+  ConnectivitySyncManager? _connectivitySyncManager;
+  Timer? _clockRefreshTimer;
   bool _isLoaded = false;
 
   static ReminderScheduler _createReminderScheduler() => kIsWeb ? NoopReminderScheduler() : LocalReminderScheduler();
@@ -26,7 +38,24 @@ class TaskStore extends ChangeNotifier {
     final loaded = await _repository.getTasks();
     _tasks..clear()..addAll(loaded);
     _isLoaded = true;
+    _clockRefreshTimer ??= Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!hasListeners) return;
+      notifyListeners();
+    });
     await _restoreReminders();
+    notifyListeners();
+  }
+
+  Future<void> reloadForAccount() async {
+    _isLoaded = false;
+    _tasks.clear();
+    await load();
+  }
+
+  void clearForLogout() {
+    unawaited(_reminderScheduler.cancelAll());
+    _tasks.clear();
+    _isLoaded = false;
     notifyListeners();
   }
 
@@ -34,12 +63,17 @@ class TaskStore extends ChangeNotifier {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, repeat, repeatIntervalDays);
     final now = DateTime.now();
-    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
+    final reminderTimeZone = reminderType == TaskReminderType.none ? null : await _currentTimeZone();
+    final task = Task(id: _uuid.v4(), title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category.trim(), tags: List.unmodifiable(tags), createdAt: now, history: <TaskHistoryEntry>[_history('Created', 'Task created', now)]);
     await _repository.saveTask(task);
     _tasks.add(task);
-    await _syncReminder(task);
+    notifyListeners();
+    await _syncReminderSafely(task);
+    // The save notification above updates the data immediately. Notify again
+    // after reminder synchronization so routes that are being revealed after
+    // the save (such as the Today workspace) render the latest task at once.
     notifyListeners();
   }
 
@@ -49,8 +83,10 @@ class TaskStore extends ChangeNotifier {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) throw ArgumentError('Task title cannot be empty.');
     final normalizedDueAt = _normalizeDueAt(dueAt);
-    _validateSchedule(normalizedDueAt, reminderType, reminderInterval);
     final current = _tasks[index];
+    final effectiveRepeat = repeat ?? current.repeat;
+    final effectiveRepeatIntervalDays = repeatIntervalDays ?? current.repeatIntervalDays;
+    _validateSchedule(normalizedDueAt, reminderType, reminderInterval, effectiveRepeat, effectiveRepeatIntervalDays, allowPastDue: true);
     final changes = <String>[];
     if (current.title != normalizedTitle) changes.add('Title changed');
     if (current.notes != notes.trim()) changes.add('Notes changed');
@@ -62,10 +98,12 @@ class TaskStore extends ChangeNotifier {
     if (isFavorite != null && current.isFavorite != isFavorite) changes.add(isFavorite ? 'Added to favorites' : 'Removed from favorites');
     if (category != null && current.category != category.trim()) changes.add('Category changed');
     if (tags != null && current.tags.join('|') != tags.join('|')) changes.add('Tags changed');
-    final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
+    final reminderTimeZone = reminderType == TaskReminderType.none ? null : await _currentTimeZone();
+    final updated = current.copyWith(title: normalizedTitle, notes: notes.trim(), dueAt: normalizedDueAt, reminderType: reminderType, reminderInterval: reminderInterval, reminderTimeZone: reminderTimeZone, priority: priority, repeat: repeat, repeatIntervalDays: repeatIntervalDays, isFavorite: isFavorite, category: category?.trim(), tags: tags, history: changes.isEmpty ? current.history : [...current.history, _history(changes.length == 1 ? changes.single : 'Task updated', changes.join(' • '))]);
     await _repository.saveTask(updated);
     _tasks[index] = updated;
-    await _syncReminder(updated);
+    notifyListeners();
+    await _syncReminderSafely(updated);
     notifyListeners();
   }
 
@@ -82,21 +120,34 @@ class TaskStore extends ChangeNotifier {
   Future<void> toggleCompleted(String id) async {
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) return;
+
     final current = _tasks[index];
     final completing = !current.isCompleted;
     var updated = current.copyWith(isCompleted: completing);
+    var historyAction = completing ? 'Completed' : 'Reopened';
+    var historyDetail = completing ? 'Task completed' : 'Task marked active';
+
     if (completing && current.repeat != TaskRepeat.none && current.dueAt != null) {
       updated = _nextRecurringTask(current);
+      historyAction = 'Completed occurrence';
+      historyDetail = 'Next occurrence: ${_historySchedule(updated.dueAt!)}';
     }
-    updated = _withHistory(updated, completing ? 'Completed' : 'Reopened', completing ? 'Task completed' : 'Task marked active');
-    await _repository.saveTask(updated);
+
+    updated = _withHistory(updated, historyAction, historyDetail);
+
     _tasks[index] = updated;
-    if (updated.isCompleted) {
-      await _reminderScheduler.cancel(updated.id);
-    } else {
-      await _syncReminder(updated);
-    }
     notifyListeners();
+
+    try {
+      await _repository.saveTask(updated);
+      if (updated.isCompleted) {
+        await _reminderScheduler.cancel(updated.id);
+      } else {
+        await _syncReminder(updated);
+      }
+    } catch (_) {
+      // Persistence/scheduling runs in the background so the UI stays responsive.
+    }
   }
 
   Future<void> addSubtask(String taskId, String title) async {
@@ -140,52 +191,83 @@ class TaskStore extends ChangeNotifier {
   Task _withHistory(Task task, String action, String detail) => task.copyWith(history: [...task.history, _history(action, detail)]);
 
   Task _nextRecurringTask(Task task) {
-    final due = task.dueAt!;
-    DateTime next = due;
-    switch (task.repeat) {
-      case TaskRepeat.daily:
-        next = due.add(const Duration(days: 1));
-        break;
-      case TaskRepeat.weekdays:
-        next = due.add(const Duration(days: 1));
-        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
-          next = next.add(const Duration(days: 1));
-        }
-        break;
-      case TaskRepeat.weekly:
-        next = due.add(const Duration(days: 7));
-        break;
-      case TaskRepeat.monthly:
-        next = DateTime(due.year, due.month + 1, due.day, due.hour, due.minute);
-        break;
-      case TaskRepeat.custom:
-        next = due.add(Duration(days: task.repeatIntervalDays ?? 1));
-        break;
-      case TaskRepeat.none:
-        return task.copyWith(isCompleted: true);
+    final originalDue = task.dueAt!;
+    var next = _advanceRecurringDate(task, originalDue);
+    final now = DateTime.now();
+    while (!next.isAfter(now)) {
+      next = _advanceRecurringDate(task, next);
     }
     return task.copyWith(dueAt: next, isCompleted: false);
+  }
+
+  DateTime _advanceRecurringDate(Task task, DateTime due) {
+    switch (task.repeat) {
+      case TaskRepeat.daily:
+        return _addCalendarDays(due, 1);
+      case TaskRepeat.weekdays:
+        var next = _addCalendarDays(due, 1);
+        while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
+          next = _addCalendarDays(next, 1);
+        }
+        return next;
+      case TaskRepeat.weekly:
+        return _addCalendarDays(due, 7);
+      case TaskRepeat.monthly:
+        return _addCalendarMonthClamped(due, 1);
+      case TaskRepeat.custom:
+        return _addCalendarDays(due, task.repeatIntervalDays ?? 1);
+      case TaskRepeat.none:
+        return due;
+    }
+  }
+
+  String _historySchedule(DateTime value) => '${value.day}/${value.month}/${value.year} at ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  DateTime _addCalendarDays(DateTime value, int days) => DateTime(value.year, value.month, value.day + days, value.hour, value.minute, value.second);
+
+  DateTime _addCalendarMonthClamped(DateTime value, int months) {
+    final targetMonth = value.month + months;
+    final targetYear = value.year + ((targetMonth - 1) ~/ 12);
+    final month = ((targetMonth - 1) % 12) + 1;
+    final lastDay = DateTime(targetYear, month + 1, 0).day;
+    final day = value.day > lastDay ? lastDay : value.day;
+    return DateTime(targetYear, month, day, value.hour, value.minute, value.second);
   }
 
   Future<void> deleteTask(String id) async {
     await _repository.deleteTask(id);
     _tasks.removeWhere((task) => task.id == id);
-    await _reminderScheduler.cancel(id);
     notifyListeners();
+
+    // A native alarm can outlive the Dart task object. Cancellation is best
+    // effort here; startup reconciliation below removes any orphaned alarms.
+    try {
+      await _reminderScheduler.cancel(id);
+    } catch (_) {
+      try {
+        await _reminderScheduler.cancel(id);
+      } catch (_) {
+        // Startup reconciliation will retry cancellation.
+      }
+    }
   }
 
   Future<void> clearCompleted() async {
     final completed = _tasks.where((task) => task.isCompleted).toList(growable: false);
     for (final task in completed) {
       await _repository.deleteTask(task.id);
-      await _reminderScheduler.cancel(task.id);
+      try {
+        await _reminderScheduler.cancel(task.id);
+      } catch (_) {
+        // Startup reconciliation will retry cancellation.
+      }
     }
     _tasks.removeWhere((task) => task.isCompleted);
     notifyListeners();
   }
 
-  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval) {
-    if (dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
+  void _validateSchedule(DateTime? dueAt, TaskReminderType reminderType, Duration? reminderInterval, TaskRepeat repeat, int? repeatIntervalDays, {bool allowPastDue = false}) {
+    if (!allowPastDue && dueAt != null && dueAt.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) {
       throw ArgumentError('Task date and time must be in the future.');
     }
     if (reminderType != TaskReminderType.none && dueAt == null) {
@@ -194,13 +276,38 @@ class TaskStore extends ChangeNotifier {
     if (reminderType == TaskReminderType.interval && (reminderInterval == null || reminderInterval.inMinutes <= 0)) {
       throw ArgumentError('A repeating reminder must have a valid interval.');
     }
+    if (repeat != TaskRepeat.none && dueAt == null) {
+      throw ArgumentError('A recurring task requires a due date and time.');
+    }
+    if (repeat == TaskRepeat.custom && (repeatIntervalDays == null || repeatIntervalDays <= 0)) {
+      throw ArgumentError('A custom recurrence must have a valid interval in days.');
+    }
   }
 
   Future<void> _restoreReminders() async {
     final tasks = _tasks.where((task) => !task.isCompleted && task.reminderType != TaskReminderType.none && task.dueAt != null).toList(growable: false);
     if (tasks.isEmpty) return;
-    final permitted = await _reminderScheduler.requestPermission();
-    if (!permitted && !kIsWeb) return;
+
+    // Never request POST_NOTIFICATIONS while the app is starting. On Android
+    // that prompt can otherwise appear before onboarding explains it; a
+    // rejection then causes the old implementation to cancel every pending
+    // reminder and leave none to restore. Permission is requested only from a
+    // user-initiated reminder save below.
+    if (!await _reminderScheduler.areNotificationsEnabled()) return;
+
+    // Native alarms survive process death. Once notifications are known to be
+    // available, rebuild the native schedule from the current task repository
+    // so deleted tasks cannot remain scheduled.
+    try {
+      await _reminderScheduler.cancelAll();
+    } catch (_) {
+      try {
+        await _reminderScheduler.cancelAll();
+      } catch (_) {
+        // The next account load will retry the reconciliation.
+      }
+    }
+
     for (final task in tasks) {
       await _reminderScheduler.schedule(task);
     }
@@ -214,6 +321,34 @@ class TaskStore extends ChangeNotifier {
     await _reminderScheduler.schedule(task);
   }
 
+  Future<void> _syncReminderSafely(Task task) async {
+    try {
+      await _syncReminder(task);
+    } catch (_) {
+      // A notification failure must not delay or undo the task UI update.
+    }
+  }
+
+  Future<String> _currentTimeZone() async {
+    tz_data.initializeTimeZones();
+    try {
+      final timezone = await FlutterTimezone.getLocalTimezone();
+      final location = tz.getLocation(timezone.identifier);
+      tz.setLocalLocation(location);
+      return location.name;
+    } catch (_) {
+      return tz.local.name;
+    }
+  }
+
   DateTime? _normalizeDueAt(DateTime? value) => value == null ? null : DateTime(value.year, value.month, value.day, value.hour, value.minute);
-  @override void dispose() { _repository.close(); super.dispose(); }
+
+  @override
+  void dispose() {
+    _clockRefreshTimer?.cancel();
+    _clockRefreshTimer = null;
+    _connectivitySyncManager?.dispose();
+    unawaited(_repository.close());
+    super.dispose();
+  }
 }

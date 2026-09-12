@@ -29,6 +29,9 @@ yarn-error.log
 android/.gradle/
 android/local.properties
 android/**/GeneratedPluginRegistrant.java
+mobile/android/key.properties
+*.jks
+*.keystore
 
 # IntelliJ / Android Studio
 .idea/

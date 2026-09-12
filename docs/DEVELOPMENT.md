@@ -32,6 +32,23 @@ Document meaningful API changes. Avoid breaking clients without versioning or a 
 
 Keep debug/development credentials and release signing credentials separate. Never commit signing certificates, provisioning profiles containing secrets, keystores, passwords, or service-account keys.
 
+### Android release signing
+
+The Android release build does not use the debug keystore. For a signed release, create `mobile/android/key.properties` locally with:
+
+```properties
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=path/to/your/upload-keystore.jks
+```
+
+Place the keystore at the path referenced by `storeFile`. `key.properties` and keystore files are ignored by Git. Keep backups of the keystore and passwords in a secure password manager or secret-management system.
+
+If no valid `key.properties` is present, the release variant is intentionally left unsigned rather than silently falling back to the debug key. Configure signing before distributing an Android release.
+
+Android cleartext HTTP is enabled only for the debug variant so a physical device can connect to a local development server. Release builds disable cleartext traffic and must use HTTPS.
+
 ## Code quality
 
 - Prefer clear names over clever abstractions.
