@@ -99,6 +99,76 @@ class _AddTaskPageState extends State<AddTaskPage> {
     });
   }
 
+  Future<void> _customReminderInterval() async {
+    final controller = TextEditingController(text: _interval?.inMinutes.toString() ?? '120');
+    String unit = 'minutes';
+    final result = await showDialog<Duration>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Custom repeat interval'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Choose how often you want this reminder to repeat.'),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Every', border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: unit,
+                          decoration: const InputDecoration(border: OutlineInputBorder()),
+                          items: const [
+                            DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                            DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                            DropdownMenuItem(value: 'days', child: Text('Days')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setDialogState(() => unit = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () {
+                    final amount = int.tryParse(controller.text.trim());
+                    if (amount == null || amount < 1) return;
+                    final duration = unit == 'minutes'
+                        ? Duration(minutes: amount)
+                        : unit == 'hours'
+                            ? Duration(hours: amount)
+                            : Duration(days: amount);
+                    Navigator.pop(dialogContext, duration);
+                  },
+                  child: const Text('Set interval'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+    if (result != null && mounted) setState(() => _interval = result);
+  }
+
   void _addTag() {
     final tag = _tagController.text.trim();
     if (tag.isEmpty || _tags.contains(tag)) return;
@@ -177,9 +247,28 @@ class _AddTaskPageState extends State<AddTaskPage> {
     ];
 
     if (_reminderType == TaskReminderType.interval) {
+      final intervalLabel = _formatReminderInterval(_interval ?? const Duration(hours: 2));
       children.addAll([
         const SizedBox(height: 10),
-        _PremiumDropdown<Duration>(value: _interval, items: const [DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')), DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')), DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')), DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours'))], onChanged: (v) => setState(() => _interval = v)),
+        _PremiumDropdown<Duration>(
+          value: _interval,
+          items: [
+            const DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')),
+            const DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')),
+            const DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')),
+            const DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
+            DropdownMenuItem(value: _interval, child: Text(intervalLabel)),
+          ],
+          onChanged: (v) async {
+            if (v == _interval && !const [Duration(minutes: 30), Duration(hours: 1), Duration(hours: 2), Duration(hours: 4)].contains(v)) {
+              await _customReminderInterval();
+            } else if (v != null) {
+              setState(() => _interval = v);
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Custom interval'))),
       ]);
     }
 
@@ -223,6 +312,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
       body: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 42), children: children),
     );
   }
+}
+
+String _formatReminderInterval(Duration duration) {
+  if (duration.inDays > 0 && duration.inHours % 24 == 0) {
+    return duration.inDays == 1 ? 'Every day' : 'Every ${duration.inDays} days';
+  }
+  if (duration.inHours > 0 && duration.inMinutes % 60 == 0) {
+    return duration.inHours == 1 ? 'Every hour' : 'Every ${duration.inHours} hours';
+  }
+  return duration.inMinutes == 1 ? 'Every minute' : 'Every ${duration.inMinutes} minutes';
 }
 
 class _ModeCard extends StatelessWidget {
