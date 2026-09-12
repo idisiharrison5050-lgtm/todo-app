@@ -366,24 +366,29 @@ class _SearchState extends State<_Search> {
               child: Row(children: ['All', 'Active', 'Completed', 'Favorites'].map<Widget>((value) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(value), selected: _filter == value, onSelected: (_) => setState(() => _filter = value)))).toList()),
             ),
           ),
-          SliverPadding(padding: const EdgeInsets.fromLTRB(22, 0, 22, 8), sliver: SliverToBoxAdapter(child: Text('${results.length} results', style: Theme.of(context).textTheme.bodySmall))),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 110),
-            sliver: SliverList.separated(
-              itemCount: results.length,
-              itemBuilder: (_, i) {
-                final task = results[i];
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: task.dueAt == null ? null : Text(TimeOfDay.fromDateTime(task.dueAt!).format(context)),
-                  leading: Icon(task.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailPage(store: widget.store, task: task))),
-                );
-              },
-              separatorBuilder: (_, __) => const Divider(height: 1),
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 8),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                '${results.length} results',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
             ),
           ),
+          if (results.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: Text('No matching tasks.')),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 110),
+              sliver: SliverList.separated(
+                itemCount: results.length,
+                itemBuilder: (_, i) => _TaskTile(task: results[i], store: widget.store),
+                separatorBuilder: (_, __) => const SizedBox(height: 9),
+              ),
+            ),
         ],
       ),
     );
