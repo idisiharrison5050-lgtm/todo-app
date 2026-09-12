@@ -50,7 +50,65 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
           _running = false;
           _completed++;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Focus session complete. Nice work.')));
+        _showCompletionFlow();
+      } else if (mounted) {
+        setState(() => _remaining -= const Duration(seconds: 1));
+      }
+    });
+  }
+
+  Future<void> _showCompletionFlow() async {
+    final task = _taskId == null
+        ? null
+        : widget.store.tasks.where((item) => item.id == _taskId).firstOrNull;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _FocusCompletionSheet(
+        taskTitle: task?.title,
+        duration: _length,
+        onCompleteTask: task == null
+            ? null
+            : () async {
+                await widget.store.toggleCompleted(task.id);
+                if (!mounted) return;
+                Navigator.of(sheetContext).pop();
+                setState(() {
+                  _taskId = null;
+                  _remaining = _length;
+                });
+              },
+        onStartAnother: () {
+          Navigator.of(sheetContext).pop();
+          if (!mounted) return;
+          setState(() => _remaining = _length);
+          _startTimer();
+        },
+        onDismiss: () {
+          Navigator.of(sheetContext).pop();
+          if (!mounted) return;
+          setState(() => _remaining = _length);
+        },
+      ),
+    );
+  }
+
+  void _startTimer() {
+    if (_running) return;
+    setState(() => _running = true);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_remaining.inSeconds <= 1) {
+        _timer?.cancel();
+        if (!mounted) return;
+        setState(() {
+          _remaining = Duration.zero;
+          _running = false;
+          _completed++;
+        });
+        _showCompletionFlow();
       } else if (mounted) {
         setState(() => _remaining -= const Duration(seconds: 1));
       }
@@ -282,6 +340,78 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _FocusCompletionSheet extends StatelessWidget {
+  const _FocusCompletionSheet({required this.taskTitle, required this.duration, required this.onCompleteTask, required this.onStartAnother, required this.onDismiss});
+  final String? taskTitle;
+  final Duration duration;
+  final Future<void> Function()? onCompleteTask;
+  final VoidCallback onStartAnother;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final minutes = duration.inMinutes;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(color: scheme.primaryContainer, shape: BoxShape.circle),
+              child: Icon(Icons.emoji_events_rounded, color: scheme.primary, size: 40),
+            ),
+            const SizedBox(height: 18),
+            Text('Focus session complete', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text('$minutes minutes of deep work. That time counts.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            if (taskTitle != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
+                child: Row(
+                  children: [
+                    Icon(Icons.task_alt_rounded, color: scheme.primary),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(taskTitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (onCompleteTask != null)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () async => onCompleteTask!(),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Complete task'),
+                ),
+              ),
+            const SizedBox(height: 9),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: onStartAnother,
+                icon: const Icon(Icons.replay_rounded),
+                label: const Text('Start another session'),
+              ),
+            ),
+            TextButton(onPressed: onDismiss, child: const Text('Done for now')),
+          ],
+        ),
       ),
     );
   }
