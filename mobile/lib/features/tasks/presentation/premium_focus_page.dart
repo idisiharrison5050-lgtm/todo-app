@@ -258,7 +258,7 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                                         if (isOverdue) ...[
                                           Icon(Icons.warning_amber_rounded, size: 13, color: scheme.error),
                                           const SizedBox(width: 4),
-                                          Text('Overdue', style: TextStyle(fontSize: 11.5, color: scheme.error, fontWeight: FontWeight.w900)),
+                                          Text('Overdue · ${MaterialLocalizations.of(context).formatMediumDate(task.dueAt!)}', style: TextStyle(fontSize: 11.5, color: scheme.error, fontWeight: FontWeight.w900)),
                                           const SizedBox(width: 5),
                                         ],
                                         Text(
