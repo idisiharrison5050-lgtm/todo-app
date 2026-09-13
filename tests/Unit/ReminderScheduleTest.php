@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Models\Reminder;
 use App\Services\ReminderSchedule;
 use Carbon\CarbonImmutable;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class ReminderScheduleTest extends TestCase
 {

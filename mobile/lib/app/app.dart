@@ -1,8 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'theme/app_theme.dart';
+import '../features/auth/application/auth_store.dart';
+import '../features/auth/presentation/auth_page.dart';
 import '../features/reminders/data/local_notification_service.dart';
 import '../features/tasks/application/task_store.dart';
-import '../features/tasks/presentation/home_page.dart';
+import '../features/tasks/presentation/first_run_onboarding_page.dart';
+import '../features/tasks/presentation/premium_settings_page.dart';
+import '../features/tasks/presentation/premium_workspace_page.dart';
 import '../features/tasks/presentation/task_detail_page.dart';
 
 class TodoApp extends StatefulWidget {
@@ -12,26 +20,107 @@ class TodoApp extends StatefulWidget {
 
 class _TodoAppState extends State<TodoApp> {
   late final TaskStore _taskStore;
+  late final AuthStore _authStore;
+  late final LocalNotificationService _notifications;
   late Future<void> _loadFuture;
   final _navigatorKey = GlobalKey<NavigatorState>();
+  String? _pendingNotificationTaskId;
+  ThemeMode _themeMode = ThemeMode.system;
+  int _startPage = 0;
+  bool _showOnboarding = false;
 
   @override
   void initState() {
     super.initState();
     _taskStore = TaskStore();
+    _authStore = AuthStore();
+    _notifications = LocalNotificationService();
     LocalNotificationService.onNotificationTap = _openTask;
-    _loadFuture = _taskStore.load();
+    _loadFuture = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final preferences = await SharedPreferences.getInstance();
+    _themeMode = _themeModeFromName(preferences.getString('theme_mode'));
+    _startPage = _startPageFromName(preferences.getString('start_page'));
+    await _authStore.restore();
+    await _taskStore.load();
+    _showOnboarding = _authStore.isAuthenticated && preferences.getBool('onboarding_complete') != true;
+    _pendingNotificationTaskId = await _notifications.getLaunchTaskId();
+    if (_authStore.isAuthenticated && _pendingNotificationTaskId != null) {
+      _openPendingNotification();
+    }
+  }
+
+  ThemeMode _themeModeFromName(String? value) {
+    switch (value) {
+      case 'light': return ThemeMode.light;
+      case 'dark': return ThemeMode.dark;
+      default: return ThemeMode.system;
+    }
+  }
+
+  int _startPageFromName(String? value) {
+    switch (value) {
+      case 'calendar': return 1;
+      case 'focus': return 2;
+      case 'search': return 3;
+      case 'today':
+      default: return 0;
+    }
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    if (mounted) setState(() => _themeMode = mode);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('theme_mode', mode.name);
+  }
+
+  Future<void> _setStartPage(int index) async {
+    if (index < 0 || index > 3) return;
+    if (mounted) setState(() => _startPage = index);
+    final preferences = await SharedPreferences.getInstance();
+    const names = ['today', 'calendar', 'focus', 'search'];
+    await preferences.setString('start_page', names[index]);
+  }
+
+  Future<void> _completeOnboarding() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('onboarding_complete', true);
+    if (mounted) setState(() => _showOnboarding = false);
+  }
+
+  void _openPendingNotification() {
+    final id = _pendingNotificationTaskId;
+    if (id == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingNotificationTaskId = null;
+      _openTask(id);
+    });
   }
 
   void _openTask(String id) {
     final context = _navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null) {
+      _pendingNotificationTaskId = id;
+      return;
+    }
     for (final task in _taskStore.tasks) {
       if (task.id == id) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: _taskStore, task: task)));
-        break;
+        return;
       }
     }
+  }
+
+  void _authenticated() {
+    unawaited(_taskStore.reloadForAccount());
+    SharedPreferences.getInstance().then((preferences) {
+      if (!mounted) return;
+      setState(() => _showOnboarding = preferences.getBool('onboarding_complete') != true);
+    });
+    setState(() {});
+    if (_pendingNotificationTaskId != null) _openPendingNotification();
   }
 
   @override
@@ -42,40 +131,95 @@ class _TodoAppState extends State<TodoApp> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      title: 'Todo',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      themeAnimationDuration: const Duration(milliseconds: 350),
-      themeAnimationCurve: Curves.easeOutCubic,
-      home: FutureBuilder<void>(
-        future: _loadFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) return const _Loading();
-          if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _taskStore.load()));
-          return HomePage(store: _taskStore);
-        },
-      ),
-    );
+  Widget build(BuildContext context) => MaterialApp(
+        navigatorKey: _navigatorKey,
+        title: 'Todo',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: _themeMode,
+        themeAnimationDuration: const Duration(milliseconds: 350),
+        themeAnimationCurve: Curves.easeOutCubic,
+        home: FutureBuilder<void>(
+          future: _loadFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) return const _Loading();
+            if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
+            if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
+            if (_showOnboarding) return FirstRunOnboardingPage(notifications: _notifications, onComplete: _completeOnboarding);
+            return SettingsScope(
+              store: _taskStore,
+              authStore: _authStore,
+              notifications: _notifications,
+              themeMode: _themeMode,
+              startPage: _startPage,
+              onThemeModeChanged: _setThemeMode,
+              onStartPageChanged: _setStartPage,
+              child: PremiumWorkspacePage(
+                key: ValueKey('workspace-$_startPage'),
+                store: _taskStore,
+                onLogout: _logout,
+                initialIndex: _startPage,
+              ),
+            );
+          },
+        ),
+      );
+
+  Future<void> _logout() async {
+    if (!mounted || !_authStore.hasSession) return;
+    _taskStore.clearForLogout();
+    await _authStore.logout();
+    if (mounted) setState(() {});
   }
 }
 
-class _Loading extends StatelessWidget {
+class _Loading extends StatefulWidget {
   const _Loading();
+  @override State<_Loading> createState() => _LoadingState();
+}
+
+class _LoadingState extends State<_Loading> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
-        const SizedBox(height: 20),
-        Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
-      ]),),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: Tween<double>(begin: .94, end: 1.0).animate(
+                CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+              ),
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(Icons.check_rounded, color: scheme.onPrimary, size: 34),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -83,18 +227,28 @@ class _Loading extends StatelessWidget {
 class _Error extends StatelessWidget {
   const _Error({required this.onRetry});
   final VoidCallback onRetry;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.cloud_off_rounded, size: 48, color: Theme.of(context).colorScheme.error),
-        const SizedBox(height: 16),
-        Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center),
-        const SizedBox(height: 20),
-        FilledButton(onPressed: onRetry, child: const Text('Try again')),
-      ]),),),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off_rounded, size: 48, color: scheme.error),
+              const SizedBox(height: 16),
+              Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              FilledButton(onPressed: onRetry, child: const Text('Try again')),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
