@@ -114,9 +114,4 @@ class RoutineStore extends ChangeNotifier {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_storageKey, jsonEncode(_routines.map((routine) => routine.toJson()).toList()));
   }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }
