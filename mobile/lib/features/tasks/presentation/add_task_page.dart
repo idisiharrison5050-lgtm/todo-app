@@ -156,25 +156,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
           children: [
-            Text('How do you want to add it?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Quick Capture', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            Text('Capture something instantly, or give it the full treatment.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
+            Text('Capture a task instantly. Use More when you want to add details.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(height: 28),
-            _ModeCard(icon: Icons.bolt_rounded, title: 'Quick Capture', description: 'Type one thing and get it out of your head.', badge: 'FASTEST', onTap: () => setState(() => _detailed = false), autofocus: true, controller: _titleController, onSave: _save, scheme: scheme),
-            const SizedBox(height: 10),
-            Card(
-              elevation: 0,
-              color: scheme.primaryContainer.withValues(alpha: .42),
-              child: ListTile(
-                leading: Icon(Icons.tune_rounded, color: scheme.primary),
-                title: const Text('Add details to this task', style: TextStyle(fontWeight: FontWeight.w900)),
-                subtitle: const Text('Schedule it, add reminders, repeat it, set priority, tags and more.'),
-                trailing: const Icon(Icons.arrow_forward_rounded),
-                onTap: () => setState(() => _detailed = true),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _ModeCard(icon: Icons.auto_awesome_rounded, title: 'Detailed Task', description: 'Open the full task editor with every available option.', badge: 'POWERFUL', onTap: () => setState(() => _detailed = true), scheme: scheme),
+            _ModeCard(icon: Icons.bolt_rounded, title: 'Quick Capture', description: 'Type one thing and get it out of your head.', badge: 'FASTEST', onTap: () {}, onMore: () => setState(() => _detailed = true), autofocus: true, controller: _titleController, onSave: _save, scheme: scheme),
           ],
         ),
       ),
@@ -214,7 +200,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const SizedBox(height: 10),
         _PremiumDropdown<Duration>(value: currentInterval, items: intervalItems, onChanged: (v) { if (v != null) setState(() => _interval = v); }),
         const SizedBox(height: 8),
-        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat'))),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat')),
       ]);
     }
 
@@ -264,7 +250,7 @@ String _formatReminderInterval(Duration duration) {
 }
 
 class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.icon, required this.title, required this.description, required this.badge, required this.onTap, required this.scheme, this.autofocus = false, this.controller, this.onSave});
+  const _ModeCard({required this.icon, required this.title, required this.description, required this.badge, required this.onTap, required this.scheme, this.autofocus = false, this.controller, this.onSave, this.onMore});
   final IconData icon;
   final String title;
   final String description;
@@ -274,26 +260,37 @@ class _ModeCard extends StatelessWidget {
   final bool autofocus;
   final TextEditingController? controller;
   final VoidCallback? onSave;
+  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
-    return Card(elevation: 0, clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Card(elevation: 0, clipBehavior: Clip.antiAlias, child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: scheme.primary)),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))])),
         Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(99)), child: Text(badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.onSecondaryContainer))),
       ]),
-      if (controller != null) ...[const SizedBox(height: 18), TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded))))]
-      else ...[const SizedBox(height: 16), Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed')))],
-    ]))));
+      if (controller != null) ...[
+        const SizedBox(height: 18),
+        TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded)))),
+        const SizedBox(height: 10),
+        Row(children: [
+          if (onMore != null) TextButton.icon(onPressed: onMore, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('More')),
+          const Spacer(),
+          FilledButton.tonalIcon(onPressed: onSave, icon: const Icon(Icons.add_rounded, size: 18), label: const Text('Add task')),
+        ]),
+      ] else ...[
+        const SizedBox(height: 16),
+        Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed'))),
+      ],
+    ]));
   }
 }
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.icon, required this.title});
   final IconData icon;
-  final String title;
   @override
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 10, left: 2), child: Row(children: [Icon(icon, size: 19, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 8), Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))]));
 }
