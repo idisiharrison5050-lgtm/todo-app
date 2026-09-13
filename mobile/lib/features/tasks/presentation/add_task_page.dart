@@ -59,10 +59,18 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
-    final date = await showDatePicker(context: context, firstDate: DateTime(now.year, now.month, now.day), lastDate: DateTime(now.year + 5), initialDate: _dueAt ?? now);
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      initialDate: _dueAt ?? now,
+    );
     if (date == null || !mounted) return;
     final initial = _dueAt ?? DateTime(date.year, date.month, date.day, 9);
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
     if (time == null || !mounted) return;
     final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     if (value.isBefore(now)) {
@@ -95,30 +103,79 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final current = _interval ?? const Duration(hours: 2);
     String unit;
     String amountText;
-    if (current.inDays > 0 && current.inHours % 24 == 0) { unit = 'days'; amountText = current.inDays.toString(); }
-    else if (current.inHours > 0 && current.inMinutes % 60 == 0) { unit = 'hours'; amountText = current.inHours.toString(); }
-    else { unit = 'minutes'; amountText = current.inMinutes.toString(); }
+    if (current.inDays > 0 && current.inHours % 24 == 0) {
+      unit = 'days';
+      amountText = current.inDays.toString();
+    } else if (current.inHours > 0 && current.inMinutes % 60 == 0) {
+      unit = 'hours';
+      amountText = current.inHours.toString();
+    } else {
+      unit = 'minutes';
+      amountText = current.inMinutes.toString();
+    }
     final controller = TextEditingController(text: amountText);
     final result = await showDialog<Duration>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Custom repeat interval'),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Choose how often you want this reminder to repeat.'),
-            const SizedBox(height: 18),
-            Row(children: [
-              Expanded(child: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Every', border: OutlineInputBorder()))),
-              const SizedBox(width: 10),
-              Expanded(child: DropdownButtonFormField<String>(initialValue: unit, decoration: const InputDecoration(border: OutlineInputBorder()), items: const [DropdownMenuItem(value: 'minutes', child: Text('Minutes')), DropdownMenuItem(value: 'hours', child: Text('Hours')), DropdownMenuItem(value: 'days', child: Text('Days'))], onChanged: (value) { if (value != null) setDialogState(() => unit = value); })),
-            ]),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-            FilledButton(onPressed: () { final amount = int.tryParse(controller.text.trim()); if (amount == null || amount < 1) return; final duration = unit == 'minutes' ? Duration(minutes: amount) : unit == 'hours' ? Duration(hours: amount) : Duration(days: amount); Navigator.pop(dialogContext, duration); }, child: const Text('Set interval')),
-          ],
-        ),
-      ),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Custom repeat interval'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Choose how often you want this reminder to repeat.'),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Every', border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: unit,
+                          decoration: const InputDecoration(border: OutlineInputBorder()),
+                          items: const [
+                            DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                            DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                            DropdownMenuItem(value: 'days', child: Text('Days')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setDialogState(() => unit = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () {
+                    final amount = int.tryParse(controller.text.trim());
+                    if (amount == null || amount < 1) return;
+                    final duration = unit == 'minutes'
+                        ? Duration(minutes: amount)
+                        : unit == 'hours'
+                            ? Duration(hours: amount)
+                            : Duration(days: amount);
+                    Navigator.pop(dialogContext, duration);
+                  },
+                  child: const Text('Set interval'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
     controller.dispose();
     if (result != null && mounted) setState(() => _interval = result);
@@ -134,7 +191,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Future<void> _save() async {
     if (_saving) return;
     final title = _titleController.text.trim();
-    if (title.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Give your task a name first.'))); return; }
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Give your task a name first.')));
+      return;
+    }
     setState(() => _saving = true);
     try {
       final category = _categoryController.text.trim();
@@ -152,21 +212,32 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   @override
-  Widget build(BuildContext context) => !_detailed && !widget.isEditing ? _buildCreateChoice(context) : _buildDetailed(context);
+  Widget build(BuildContext context) {
+    if (!_detailed && !widget.isEditing) return _buildCreateChoice(context);
+    return _buildDetailed(context);
+  }
 
   Widget _buildCreateChoice(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(appBar: AppBar(title: const Text('Create task')), body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 36), children: [
-      Text('How do you want to add it?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      Text('Capture something instantly, or give it the full treatment.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
-      const SizedBox(height: 28),
-      _ModeCard(icon: Icons.bolt_rounded, title: 'Quick Capture', description: 'Type one thing and get it out of your head.', badge: 'FASTEST', onTap: () => setState(() => _detailed = false), autofocus: true, controller: _titleController, onSave: _save, scheme: scheme),
-      const SizedBox(height: 14),
-      _ModeCard(icon: Icons.auto_awesome_rounded, title: 'Detailed Task', description: 'Notes, schedule, reminders, repeats, priority, tags and more.', badge: 'POWERFUL', onTap: () => setState(() => _detailed = true), scheme: scheme),
-      const SizedBox(height: 26),
-      Center(child: TextButton.icon(onPressed: () => setState(() => _detailed = true), icon: const Icon(Icons.tune_rounded), label: const Text('Open full task editor'))),
-    ])));
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create task')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
+          children: [
+            Text('How do you want to add it?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text('Capture something instantly, or give it the full treatment.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 28),
+            _ModeCard(icon: Icons.bolt_rounded, title: 'Quick Capture', description: 'Type one thing and get it out of your head.', badge: 'FASTEST', onTap: () => setState(() => _detailed = false), autofocus: true, controller: _titleController, onSave: _save, scheme: scheme),
+            const SizedBox(height: 14),
+            _ModeCard(icon: Icons.auto_awesome_rounded, title: 'Detailed Task', description: 'Notes, schedule, reminders, repeats, priority, tags and more.', badge: 'POWERFUL', onTap: () => setState(() => _detailed = true), scheme: scheme),
+            const SizedBox(height: 26),
+            Center(child: TextButton.icon(onPressed: () => setState(() => _detailed = true), icon: const Icon(Icons.tune_rounded), label: const Text('Open full task editor'))),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDetailed(BuildContext context) {
@@ -188,7 +259,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
     ];
 
     if (_reminderType == TaskReminderType.interval) {
-      final presetIntervals = <Duration>[const Duration(minutes: 30), const Duration(hours: 1), const Duration(hours: 2), const Duration(hours: 3), const Duration(hours: 4)];
+      final presetIntervals = <Duration>[
+        const Duration(minutes: 30),
+        const Duration(hours: 1),
+        const Duration(hours: 2),
+        const Duration(hours: 3),
+        const Duration(hours: 4),
+      ];
       final currentInterval = _interval ?? const Duration(hours: 2);
       final custom = !presetIntervals.contains(currentInterval);
       final intervalItems = <DropdownMenuItem<Duration>>[
@@ -199,76 +276,184 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
         if (custom) DropdownMenuItem(value: currentInterval, child: Text(_formatReminderInterval(currentInterval))),
       ];
-      children.addAll([const SizedBox(height: 10), _PremiumDropdown<Duration>(value: currentInterval, items: intervalItems, onChanged: (v) { if (v != null) setState(() => _interval = v); }), const SizedBox(height: 8), Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Custom interval'))]);
+      children.addAll([
+        const SizedBox(height: 10),
+        _PremiumDropdown<Duration>(
+          value: currentInterval,
+          items: intervalItems,
+          onChanged: (v) {
+            if (v != null) setState(() => _interval = v);
+          },
+        ),
+        const SizedBox(height: 8),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Custom interval'))),
+      ]);
     }
 
-    children.addAll([const SizedBox(height: 22), _SectionLabel(icon: Icons.repeat_rounded, title: 'Repeat'), _PremiumDropdown<TaskRepeat>(value: _repeat, items: const [DropdownMenuItem(value: TaskRepeat.none, child: Text('Does not repeat')), DropdownMenuItem(value: TaskRepeat.daily, child: Text('Daily')), DropdownMenuItem(value: TaskRepeat.weekdays, child: Text('Weekdays')), DropdownMenuItem(value: TaskRepeat.weekly, child: Text('Weekly')), DropdownMenuItem(value: TaskRepeat.monthly, child: Text('Monthly')), DropdownMenuItem(value: TaskRepeat.custom, child: Text('Custom'))], onChanged: (v) => setState(() => _repeat = v ?? TaskRepeat.none))]);
+    children.addAll([
+      const SizedBox(height: 22),
+      _SectionLabel(icon: Icons.repeat_rounded, title: 'Repeat'),
+      _PremiumDropdown<TaskRepeat>(value: _repeat, items: const [DropdownMenuItem(value: TaskRepeat.none, child: Text('Does not repeat')), DropdownMenuItem(value: TaskRepeat.daily, child: Text('Daily')), DropdownMenuItem(value: TaskRepeat.weekdays, child: Text('Weekdays')), DropdownMenuItem(value: TaskRepeat.weekly, child: Text('Weekly')), DropdownMenuItem(value: TaskRepeat.monthly, child: Text('Monthly')), DropdownMenuItem(value: TaskRepeat.custom, child: Text('Custom'))], onChanged: (v) => setState(() => _repeat = v ?? TaskRepeat.none)),
+    ]);
 
-    if (_repeat == TaskRepeat.custom) children.addAll([const SizedBox(height: 10), _PremiumField(initialValue: '$_customDays', keyboardType: TextInputType.number, hintText: 'Repeat every N days', prefixIcon: Icons.calendar_view_day_rounded, onChanged: (v) => _customDays = int.tryParse(v) ?? 1)]);
+    if (_repeat == TaskRepeat.custom) {
+      children.addAll([
+        const SizedBox(height: 10),
+        _PremiumField(initialValue: '$_customDays', keyboardType: TextInputType.number, hintText: 'Repeat every N days', prefixIcon: Icons.calendar_view_day_rounded, onChanged: (v) => _customDays = int.tryParse(v) ?? 1),
+      ]);
+    }
 
-    children.addAll([const SizedBox(height: 22), _SectionLabel(icon: Icons.flag_rounded, title: 'Priority'), _PrioritySelector(value: _priority, onChanged: (v) => setState(() => _priority = v)), const SizedBox(height: 10), Card(elevation: 0, child: SwitchListTile.adaptive(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2), title: const Text('Favorite', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Keep this task easy to find'), secondary: Icon(_favorite ? Icons.star_rounded : Icons.star_border_rounded, color: _favorite ? scheme.primary : null), value: _favorite, onChanged: (v) => setState(() => _favorite = v))), const SizedBox(height: 22), _SectionLabel(icon: Icons.folder_rounded, title: 'Organization'), _PremiumField(controller: _categoryController, hintText: 'Category or list', prefixIcon: Icons.folder_open_rounded), const SizedBox(height: 10), _PremiumField(controller: _tagController, hintText: 'Add a tag and press enter', prefixIcon: Icons.sell_rounded, textInputAction: TextInputAction.done, onSubmitted: (_) => _addTag())]);
+    children.addAll([
+      const SizedBox(height: 22),
+      _SectionLabel(icon: Icons.flag_rounded, title: 'Priority'),
+      _PrioritySelector(value: _priority, onChanged: (v) => setState(() => _priority = v)),
+      const SizedBox(height: 10),
+      Card(elevation: 0, child: SwitchListTile.adaptive(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2), title: const Text('Favorite', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Keep this task easy to find'), secondary: Icon(_favorite ? Icons.star_rounded : Icons.star_border_rounded, color: _favorite ? scheme.primary : null), value: _favorite, onChanged: (v) => setState(() => _favorite = v))),
+      const SizedBox(height: 22),
+      _SectionLabel(icon: Icons.folder_rounded, title: 'Organization'),
+      _PremiumField(controller: _categoryController, hintText: 'Category or list', prefixIcon: Icons.folder_open_rounded),
+      const SizedBox(height: 10),
+      _PremiumField(controller: _tagController, hintText: 'Add a tag and press enter', prefixIcon: Icons.sell_rounded, textInputAction: TextInputAction.done, onSubmitted: (_) => _addTag()),
+    ]);
 
     if (_tags.isNotEmpty) {
       children.add(Padding(padding: const EdgeInsets.only(top: 10), child: Wrap(spacing: 8, runSpacing: 8, children: _tags.map((tag) => InputChip(avatar: const Icon(Icons.tag_rounded, size: 16), label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag)))).toList())));
     }
 
-    children.addAll([const SizedBox(height: 28), FilledButton.icon(onPressed: _saving ? null : _save, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_rounded), label: Padding(padding: const EdgeInsets.symmetric(vertical: 15), child: Text(_saving ? 'Saving…' : widget.isEditing ? 'Save changes' : 'Create task')))]);
+    children.addAll([
+      const SizedBox(height: 28),
+      FilledButton.icon(onPressed: _saving ? null : _save, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_rounded), label: Padding(padding: const EdgeInsets.symmetric(vertical: 15), child: Text(_saving ? 'Saving…' : widget.isEditing ? 'Save changes' : 'Create task'))),
+    ]);
 
-    return Scaffold(appBar: AppBar(title: Text(widget.isEditing ? 'Edit task' : 'Detailed task'), actions: [if (!widget.isEditing) TextButton(onPressed: () => setState(() => _detailed = false), child: const Text('Quick Capture'))]), body: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 42), children: children));
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.isEditing ? 'Edit task' : 'Detailed task'), actions: [if (!widget.isEditing) TextButton(onPressed: () => setState(() => _detailed = false), child: const Text('Quick Capture'))]),
+      body: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 42), children: children),
+    );
   }
 }
 
 String _formatReminderInterval(Duration duration) {
-  if (duration.inDays > 0 && duration.inHours % 24 == 0) return duration.inDays == 1 ? 'Every day' : 'Every ${duration.inDays} days';
-  if (duration.inHours > 0 && duration.inMinutes % 60 == 0) return duration.inHours == 1 ? 'Every hour' : 'Every ${duration.inHours} hours';
+  if (duration.inDays > 0 && duration.inHours % 24 == 0) {
+    return duration.inDays == 1 ? 'Every day' : 'Every ${duration.inDays} days';
+  }
+  if (duration.inHours > 0 && duration.inMinutes % 60 == 0) {
+    return duration.inHours == 1 ? 'Every hour' : 'Every ${duration.inHours} hours';
+  }
   return duration.inMinutes == 1 ? 'Every minute' : 'Every ${duration.inMinutes} minutes';
 }
 
 class _ModeCard extends StatelessWidget {
   const _ModeCard({required this.icon, required this.title, required this.description, required this.badge, required this.onTap, required this.scheme, this.autofocus = false, this.controller, this.onSave});
-  final IconData icon; final String title; final String description; final String badge; final VoidCallback onTap; final ColorScheme scheme; final bool autofocus; final TextEditingController? controller; final VoidCallback? onSave;
+  final IconData icon;
+  final String title;
+  final String description;
+  final String badge;
+  final VoidCallback onTap;
+  final ColorScheme scheme;
+  final bool autofocus;
+  final TextEditingController? controller;
+  final VoidCallback? onSave;
+
   @override
-  Widget build(BuildContext context) => Card(elevation: 0, clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: scheme.primary)), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))])), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(99)), child: Text(badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.onSecondaryContainer)))]), if (controller != null) ...[const SizedBox(height: 18), TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded))))] else ...[const SizedBox(height: 16), Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed'))])]))));
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: scheme.primary)),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))])),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(99)), child: Text(badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.onSecondaryContainer))),
+            ]),
+            if (controller != null) ...[
+              const SizedBox(height: 18),
+              TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded)))),
+            ] else ...[
+              const SizedBox(height: 16),
+              Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed'))),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.icon, required this.title});
-  final IconData icon; final String title;
+  final IconData icon;
+  final String title;
+
   @override
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 10, left: 2), child: Row(children: [Icon(icon, size: 19, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 8), Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))]));
 }
 
 class _PremiumField extends StatelessWidget {
   const _PremiumField({this.controller, this.initialValue, required this.hintText, required this.prefixIcon, this.minLines = 1, this.maxLines = 1, this.autofocus = false, this.keyboardType, this.textInputAction, this.onChanged, this.onSubmitted});
-  final TextEditingController? controller; final String? initialValue; final String hintText; final IconData prefixIcon; final int minLines; final int maxLines; final bool autofocus; final TextInputType? keyboardType; final TextInputAction? textInputAction; final ValueChanged<String>? onChanged; final ValueChanged<String>? onSubmitted;
+  final TextEditingController? controller;
+  final String? initialValue;
+  final String hintText;
+  final IconData prefixIcon;
+  final int minLines;
+  final int maxLines;
+  final bool autofocus;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+
   @override
-  Widget build(BuildContext context) { final decoration = InputDecoration(hintText: hintText, prefixIcon: Icon(prefixIcon)); if (controller != null) return TextField(controller: controller, autofocus: autofocus, minLines: minLines, maxLines: maxLines, keyboardType: keyboardType, textInputAction: textInputAction, onChanged: onChanged, onSubmitted: onSubmitted, decoration: decoration); return TextFormField(initialValue: initialValue, autofocus: autofocus, minLines: minLines, maxLines: maxLines, keyboardType: keyboardType, textInputAction: textInputAction, onChanged: onChanged, onFieldSubmitted: onSubmitted, decoration: decoration); }
+  Widget build(BuildContext context) {
+    final decoration = InputDecoration(hintText: hintText, prefixIcon: Icon(prefixIcon));
+    if (controller != null) {
+      return TextField(controller: controller, autofocus: autofocus, minLines: minLines, maxLines: maxLines, keyboardType: keyboardType, textInputAction: textInputAction, onChanged: onChanged, onSubmitted: onSubmitted, decoration: decoration);
+    }
+    return TextFormField(initialValue: initialValue, autofocus: autofocus, minLines: minLines, maxLines: maxLines, keyboardType: keyboardType, textInputAction: textInputAction, onChanged: onChanged, onFieldSubmitted: onSubmitted, decoration: decoration);
+  }
 }
 
 class _PremiumDropdown<T> extends StatelessWidget {
   const _PremiumDropdown({required this.value, required this.items, required this.onChanged});
-  final T? value; final List<DropdownMenuItem<T>> items; final ValueChanged<T?> onChanged;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<T>(initialValue: value, items: items, onChanged: onChanged, decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14)));
 }
 
 class _SettingTile extends StatelessWidget {
   const _SettingTile({required this.icon, required this.title, required this.subtitle, required this.trailing, required this.onTap});
-  final IconData icon; final String title; final String subtitle; final Widget trailing; final VoidCallback onTap;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) => Card(elevation: 0, child: ListTile(onTap: onTap, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5), leading: Icon(icon, color: Theme.of(context).colorScheme.primary), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(subtitle), trailing: trailing));
 }
 
 class _QuickScheduleRow extends StatelessWidget {
   const _QuickScheduleRow({required this.on15, required this.onHour, required this.onTomorrow});
-  final VoidCallback on15; final VoidCallback onHour; final VoidCallback onTomorrow;
+  final VoidCallback on15;
+  final VoidCallback onHour;
+  final VoidCallback onTomorrow;
+
   @override
   Widget build(BuildContext context) => Row(children: [Expanded(child: OutlinedButton.icon(onPressed: on15, icon: const Icon(Icons.timer_outlined, size: 18), label: const Text('15 min'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onHour, icon: const Icon(Icons.schedule_outlined, size: 18), label: const Text('1 hour'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onTomorrow, icon: const Icon(Icons.wb_sunny_outlined, size: 18), label: const Text('Tomorrow')))]);
 }
 
 class _PrioritySelector extends StatelessWidget {
   const _PrioritySelector({required this.value, required this.onChanged});
-  final TaskPriority value; final ValueChanged<TaskPriority> onChanged;
+  final TaskPriority value;
+  final ValueChanged<TaskPriority> onChanged;
+
   @override
   Widget build(BuildContext context) => SegmentedButton<TaskPriority>(segments: const [ButtonSegment(value: TaskPriority.low, label: Text('Low'), icon: Icon(Icons.arrow_downward_rounded, size: 17)), ButtonSegment(value: TaskPriority.normal, label: Text('Normal')), ButtonSegment(value: TaskPriority.high, label: Text('High'), icon: Icon(Icons.priority_high_rounded, size: 17))], selected: {value}, onSelectionChanged: (selection) => onChanged(selection.first));
 }
