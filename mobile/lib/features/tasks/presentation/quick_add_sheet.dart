@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../application/task_store.dart';
 import '../domain/task.dart';
+import 'add_task_page.dart';
 
 Future<void> showQuickAddTask(BuildContext context, TaskStore store) {
   return showModalBottomSheet<void>(
@@ -74,6 +75,27 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       return;
     }
     setState(() => _dueAt = picked);
+  }
+
+  Future<void> _openMore() async {
+    final navigator = Navigator.of(context);
+    final title = _controller.text.trim();
+    final dueAt = _dueAt;
+    final priority = _priority;
+    final reminder = _reminder;
+
+    navigator.pop();
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => AddTaskPage(
+          store: widget.store,
+          initialTitle: title,
+          initialDueAt: dueAt,
+          initialPriority: priority,
+          initialReminderType: reminder ? TaskReminderType.once : TaskReminderType.none,
+        ),
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -152,7 +174,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'Capture the task now. Add the fine details later.',
+                          'Capture the task now. Use More for full task details.',
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
@@ -272,19 +294,34 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                 ),
               ],
               const SizedBox(height: 15),
-              FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 19,
-                        height: 19,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_rounded),
-                label: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(_saving ? 'Adding…' : 'Add task'),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _saving ? null : _openMore,
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('More'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : _save,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 19,
+                              height: 19,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_rounded),
+                      label: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(_saving ? 'Adding…' : 'Add task'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
