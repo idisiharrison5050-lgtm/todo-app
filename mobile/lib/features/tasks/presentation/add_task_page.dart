@@ -214,7 +214,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const SizedBox(height: 10),
         _PremiumDropdown<Duration>(value: currentInterval, items: intervalItems, onChanged: (v) { if (v != null) setState(() => _interval = v); }),
         const SizedBox(height: 8),
-        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat'))),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat')),
       ]);
     }
 
@@ -286,7 +286,7 @@ class _ModeCard extends StatelessWidget {
       ]),
       if (controller != null) ...[const SizedBox(height: 18), TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded))))]
       else ...[const SizedBox(height: 16), Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed')))],
-    ])));
+    ]))));
   }
 }
 
