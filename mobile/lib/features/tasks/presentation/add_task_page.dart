@@ -242,7 +242,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildDetailed(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final children = <Widget>[
       _SectionLabel(icon: Icons.edit_note_rounded, title: 'Task'),
       _PremiumField(controller: _titleController, autofocus: !widget.isEditing, hintText: 'What needs to be done?', prefixIcon: Icons.check_circle_outline_rounded),
@@ -263,6 +263,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const Duration(minutes: 30),
         const Duration(hours: 1),
         const Duration(hours: 2),
+        const Duration(hours: 3),
         const Duration(hours: 4),
       ];
       final currentInterval = _interval ?? const Duration(hours: 2);
@@ -271,6 +272,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const DropdownMenuItem(value: Duration(minutes: 30), child: Text('Every 30 minutes')),
         const DropdownMenuItem(value: Duration(hours: 1), child: Text('Every hour')),
         const DropdownMenuItem(value: Duration(hours: 2), child: Text('Every 2 hours')),
+        const DropdownMenuItem(value: Duration(hours: 3), child: Text('Every 3 hours')),
         const DropdownMenuItem(value: Duration(hours: 4), child: Text('Every 4 hours')),
         if (custom) DropdownMenuItem(value: currentInterval, child: Text(_formatReminderInterval(currentInterval))),
       ];
@@ -315,7 +317,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     ]);
 
     if (_tags.isNotEmpty) {
-      children.add(Padding(padding: const EdgeInsets.only(top: 10), child: Wrap(spacing: 8, runSpacing: 8, children: _tags.map((tag) => InputChip(avatar: const Icon(Icons.tag_rounded, size: 16), label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag)))).toList())));
+      children.add(Padding(padding: const EdgeInsets.only(top: 10), child: Wrap(spacing: 8, runSpacing: 8, children: _tags.map((tag) => InputChip(avatar: const Icon(Icons.tag_rounded, size: 16), label: Text(tag), onDeleted: () => setState(() => _tags.remove(tag))).toList())));
     }
 
     children.addAll([
