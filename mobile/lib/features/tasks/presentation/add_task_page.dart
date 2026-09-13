@@ -286,7 +286,7 @@ class _ModeCard extends StatelessWidget {
       ]),
       if (controller != null) ...[const SizedBox(height: 18), TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded))))]
       else ...[const SizedBox(height: 16), Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed')))],
-    ])));
+    ]))));
   }
 }
 
