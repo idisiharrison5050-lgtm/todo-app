@@ -233,7 +233,12 @@ class _RoutineEditorState extends State<_RoutineEditor> {
         content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes', helperText: 'Choose any interval from 1 to 1440 minutes.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(onPressed: () { final parsed = int.tryParse(controller.text.trim()); if (parsed != null && parsed >= 1 && parsed <= 1440) Navigator.pop(dialogContext, parsed); }, child: const Text('Set')),
+          FilledButton(onPressed: () {
+            final parsed = int.tryParse(controller.text.trim());
+            if (parsed != null && parsed >= 1 && parsed <= 1440) {
+              Navigator.pop(dialogContext, parsed);
+            }
+          }, child: const Text('Set')),
         ],
       ),
     );
@@ -281,7 +286,28 @@ class _RoutineEditorState extends State<_RoutineEditor> {
             const SizedBox(height: 22),
             Text('Days', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            Row(children: List.generate(7, (index) { final day = index + 1; final selected = _days.contains(day); const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; return Expanded(child: Padding(padding: EdgeInsets.only(right: index == 6 ? 0 : 6), child: ChoiceChip(label: Text(labels[index]), selected: selected, onSelected: (_) => setState(() { if (selected) _days.remove(day); else _days.add(day); _days.sort(); })))); })),
+            Row(children: List.generate(7, (index) {
+              final day = index + 1;
+              final selected = _days.contains(day);
+              const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: index == 6 ? 0 : 6),
+                  child: ChoiceChip(
+                    label: Text(labels[index]),
+                    selected: selected,
+                    onSelected: (_) => setState(() {
+                      if (selected) {
+                        _days.remove(day);
+                      } else {
+                        _days.add(day);
+                      }
+                      _days.sort();
+                    }),
+                  ),
+                ),
+              );
+            })),
             if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: TextStyle(color: scheme.error, fontWeight: FontWeight.w700))],
             const SizedBox(height: 24),
             SizedBox(width: double.infinity, height: 54, child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.check_rounded), label: Text(widget.initial == null ? 'Create routine' : 'Save changes'))),
