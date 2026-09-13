@@ -14,7 +14,7 @@ class AuthApi {
       'password': password,
       'device_name': deviceName,
     });
-    return AuthUser.fromJson(response.data['user'] as Map<String, dynamic>);
+    return _parse(response);
   }
 
   Future<AuthUser> register({required String name, required String email, required String password, required String deviceName}) async {
@@ -25,7 +25,14 @@ class AuthApi {
       'password_confirmation': password,
       'device_name': deviceName,
     });
-    return AuthUser.fromJson(response.data['user'] as Map<String, dynamic>);
+    return _parse(response);
+  }
+
+  AuthUser _parse(Response<dynamic> response) {
+    final body = response.data as Map<String, dynamic>;
+    final user = body['user'] as Map<String, dynamic>;
+    final token = body['token'] as String? ?? body['access_token'] as String?;
+    return AuthUser.fromJson(user, token: token);
   }
 
   Future<void> logout(String token) async {

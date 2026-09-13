@@ -13,6 +13,7 @@ class AuthStore {
 
   AuthUser? get user => _user;
   String? get token => _token;
+  bool get hasSession => _token != null;
   bool get isAuthenticated => _token != null && _user != null;
 
   Future<bool> restore() async {
@@ -23,25 +24,33 @@ class AuthStore {
   Future<AuthUser> login({required String email, required String password, required String deviceName}) async {
     final user = await _api.login(email: email, password: password, deviceName: deviceName);
     _user = user;
+    _token = user.token;
+    if (_token == null || _token!.isEmpty) {
+      throw StateError('Authentication succeeded without an access token.');
+    }
+    await _storage.write(_token!);
     return user;
   }
 
   Future<AuthUser> register({required String name, required String email, required String password, required String deviceName}) async {
     final user = await _api.register(name: name, email: email, password: password, deviceName: deviceName);
     _user = user;
+    _token = user.token;
+    if (_token == null || _token!.isEmpty) {
+      throw StateError('Registration succeeded without an access token.');
+    }
+    await _storage.write(_token!);
     return user;
   }
 
   Future<void> logout() async {
     final token = _token;
-    if (token != null) {
-      try {
-        await _api.logout(token);
-      } finally {
-        await _storage.clear();
-      }
+    try {
+      if (token != null) await _api.logout(token);
+    } finally {
+      await _storage.clear();
+      _token = null;
+      _user = null;
     }
-    _token = null;
-    _user = null;
   }
 }

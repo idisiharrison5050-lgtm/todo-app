@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import '../features/auth/application/auth_store.dart';
+import '../features/auth/presentation/auth_page.dart';
 import '../features/reminders/data/local_notification_service.dart';
 import '../features/tasks/application/task_store.dart';
 import '../features/tasks/presentation/home_page.dart';
@@ -12,6 +14,7 @@ class TodoApp extends StatefulWidget {
 
 class _TodoAppState extends State<TodoApp> {
   late final TaskStore _taskStore;
+  late final AuthStore _authStore;
   late Future<void> _loadFuture;
   final _navigatorKey = GlobalKey<NavigatorState>();
 
@@ -19,8 +22,14 @@ class _TodoAppState extends State<TodoApp> {
   void initState() {
     super.initState();
     _taskStore = TaskStore();
+    _authStore = AuthStore();
     LocalNotificationService.onNotificationTap = _openTask;
-    _loadFuture = _taskStore.load();
+    _loadFuture = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _authStore.restore();
+    await _taskStore.load();
   }
 
   void _openTask(String id) {
@@ -33,6 +42,8 @@ class _TodoAppState extends State<TodoApp> {
       }
     }
   }
+
+  void _authenticated() => setState(() {});
 
   @override
   void dispose() {
@@ -56,7 +67,8 @@ class _TodoAppState extends State<TodoApp> {
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) return const _Loading();
-          if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _taskStore.load()));
+          if (snapshot.hasError) return _Error(onRetry: () => setState(() => _loadFuture = _initialize()));
+          if (!_authStore.hasSession) return AuthPage(store: _authStore, onAuthenticated: _authenticated);
           return HomePage(store: _taskStore);
         },
       ),
@@ -66,35 +78,19 @@ class _TodoAppState extends State<TodoApp> {
 
 class _Loading extends StatelessWidget {
   const _Loading();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
-        const SizedBox(height: 20),
-        Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
-      ]),),
-    );
-  }
+  @override Widget build(BuildContext context) => Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    Container(width: 64, height: 64, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.check_rounded, color: Colors.white, size: 34)),
+    const SizedBox(height: 20), Text('Preparing your workspace', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 12),
+    const SizedBox(width: 120, child: LinearProgressIndicator(minHeight: 3)),
+  ])));
 }
 
 class _Error extends StatelessWidget {
   const _Error({required this.onRetry});
   final VoidCallback onRetry;
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.cloud_off_rounded, size: 48, color: Theme.of(context).colorScheme.error),
-        const SizedBox(height: 16),
-        Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center),
-        const SizedBox(height: 20),
-        FilledButton(onPressed: onRetry, child: const Text('Try again')),
-      ]),),),
-    );
-  }
+  @override Widget build(BuildContext context) => Scaffold(body: Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
+    Icon(Icons.cloud_off_rounded, size: 48, color: Theme.of(context).colorScheme.error), const SizedBox(height: 16),
+    Text('We could not load your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 8),
+    const Text('Your tasks are safe. Try loading them again.', textAlign: TextAlign.center), const SizedBox(height: 20), FilledButton(onPressed: onRetry, child: const Text('Try again')),
+  ]))));
 }
