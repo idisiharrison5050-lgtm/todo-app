@@ -154,7 +154,10 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
                 Row(children: [Text(_running ? '● SESSION LIVE' : 'READY WHEN YOU ARE', style: TextStyle(color: scheme.onPrimary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)), const Spacer(), if (_completed > 0) Text('$_completed completed', style: TextStyle(color: scheme.onPrimary.withValues(alpha: .8), fontSize: 11, fontWeight: FontWeight.w800))]),
                 const SizedBox(height: 20),
                 SizedBox(width: 224, height: 224, child: Stack(alignment: Alignment.center, children: [
-                  CircularProgressIndicator(value: progress, strokeWidth: 13, backgroundColor: scheme.onPrimary.withValues(alpha: .13), color: scheme.onPrimary),
+                  Transform.translate(
+                    offset: const Offset(0, -16),
+                    child: CircularProgressIndicator(value: progress, strokeWidth: 13, backgroundColor: scheme.onPrimary.withValues(alpha: .13), color: scheme.onPrimary),
+                  ),
                   Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(_running ? Icons.bolt_rounded : Icons.hourglass_empty_rounded, color: scheme.onPrimary, size: 26),
                     const SizedBox(height: 4),
