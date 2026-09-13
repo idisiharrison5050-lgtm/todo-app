@@ -78,6 +78,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   }
 
   Future<void> _openMore() async {
+    final title = _controller.text.trim();
     final navigator = Navigator.of(context);
     navigator.pop();
     await navigator.push(
@@ -99,10 +100,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
     setState(() => _saving = true);
     try {
-      // Quick Capture is intended to put a new task straight into the
-      // Today/Calendar workflow. If the user did not choose a schedule,
-      // give it a near-term due time today instead of creating an
-      // unscheduled task that is invisible in both date-based views.
       final dueAt = _dueAt ?? DateTime.now().add(const Duration(minutes: 15));
 
       await widget.store.addTask(
