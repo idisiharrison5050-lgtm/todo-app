@@ -63,7 +63,7 @@ class _PremiumFocusPageState extends State<PremiumFocusPage> {
         duration: _length,
         onCompleteTask: task == null ? null : () async {
           await widget.store.toggleCompleted(task.id);
-          if (!mounted) return;
+          if (!mounted || !sheetContext.mounted) return;
           Navigator.of(sheetContext).pop();
           setState(() { _taskId = null; _remaining = _length; });
         },
