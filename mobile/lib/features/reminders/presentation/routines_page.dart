@@ -141,7 +141,14 @@ class _RoutineCard extends StatelessWidget {
           ])),
           Switch(value: routine.enabled, onChanged: onToggle),
           PopupMenuButton<String>(
-            onSelected: (value) { if (value == 'edit') onEdit(); if (value == 'delete') onDelete(); },
+            onSelected: (value) {
+              if (value == 'edit') {
+                onEdit();
+              }
+              if (value == 'delete') {
+                onDelete();
+              }
+            },
             itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit')), PopupMenuItem(value: 'delete', child: Text('Delete'))],
           ),
         ]),
@@ -209,7 +216,11 @@ class _RoutineEditorState extends State<_RoutineEditor> {
     if (selected == null || !mounted) return;
     setState(() {
       final value = selected.hour * 60 + selected.minute;
-      if (start) _startMinutes = value; else _endMinutes = value;
+      if (start) {
+        _startMinutes = value;
+      } else {
+        _endMinutes = value;
+      }
     });
   }
 
