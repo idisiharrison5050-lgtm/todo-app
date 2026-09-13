@@ -40,12 +40,18 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   }
 
   void _setDue(Duration duration) {
-    setState(() => _dueAt = DateTime.now().add(duration));
+    setState(() {
+      _dueAt = DateTime.now().add(duration);
+      _reminder = true;
+    });
   }
 
   void _setTomorrow() {
     final n = DateTime.now().add(const Duration(days: 1));
-    setState(() => _dueAt = DateTime(n.year, n.month, n.day, 9));
+    setState(() {
+      _dueAt = DateTime(n.year, n.month, n.day, 9);
+      _reminder = true;
+    });
   }
 
   Future<void> _pickDateTime() async {
@@ -74,7 +80,10 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       );
       return;
     }
-    setState(() => _dueAt = picked);
+    setState(() {
+      _dueAt = picked;
+      _reminder = true;
+    });
   }
 
   Future<void> _openMore() async {
