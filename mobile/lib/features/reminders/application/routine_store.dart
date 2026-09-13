@@ -80,13 +80,13 @@ class RoutineStore extends ChangeNotifier {
     final index = _routines.indexWhere((item) => item.id == routine.id);
     if (index == -1) return;
     final previous = _routines[index];
-    await _scheduler.cancelWithDefinition(previous);
     if (routine.enabled) {
       final notificationsGranted = await _notifications.requestPermissions();
       if (!notificationsGranted) {
         throw StateError('Notification permission is required for routine reminders.');
       }
     }
+    await _scheduler.cancelWithDefinition(previous);
     _routines = [..._routines]..[index] = routine;
     await _persist();
     notifyListeners();
