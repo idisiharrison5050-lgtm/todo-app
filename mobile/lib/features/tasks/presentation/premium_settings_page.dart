@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../auth/application/auth_store.dart';
 import '../../reminders/data/local_notification_service.dart';
-import '../../reminders/application/routine_store.dart';
-import '../../reminders/presentation/routines_page.dart';
 import '../application/task_store.dart';
 
 class SettingsScope extends InheritedWidget {
@@ -85,7 +83,6 @@ class _PremiumSettingsPageState extends State<PremiumSettingsPage> {
             _SettingTile(icon: Icons.home_outlined, title: 'Start page', subtitle: _startPageLabel(scope.startPage), onTap: () => _showStartPage(context, scope)),
             _SettingTile(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: _notificationSummary, onTap: () => _showNotifications(context, scope.notifications)),
             _SettingTile(icon: Icons.alarm_on_outlined, title: 'Exact reminders', subtitle: _exactAlarmSummary, onTap: () => _configureExactAlarms(context, scope.notifications)),
-            _SettingTile(icon: Icons.schedule_rounded, title: 'Routines', subtitle: 'Create your own recurring reminders', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RoutinesPage(store: RoutineStore(notifications: scope.notifications))))),
             _SettingTile(icon: Icons.sync_rounded, title: 'Sync & offline', subtitle: 'Refresh your workspace now', onTap: () => _syncNow(context, scope.store)),
             _SettingTile(icon: Icons.cleaning_services_outlined, title: 'Clear completed', subtitle: 'Remove completed tasks from this workspace', onTap: () => _clearCompleted(context, scope.store)),
           ]),
