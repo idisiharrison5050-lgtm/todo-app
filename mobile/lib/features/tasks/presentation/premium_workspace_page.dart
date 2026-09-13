@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../reminders/application/routine_store.dart';
+import '../../reminders/presentation/routines_page.dart';
 import '../application/task_store.dart';
 import '../domain/task.dart';
 import 'calendar_page.dart';
@@ -20,11 +22,27 @@ class PremiumWorkspacePage extends StatefulWidget {
 
 class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
   late int _index;
+  RoutineStore? _routineStore;
 
   @override
   void initState() {
     super.initState();
-    _index = widget.initialIndex.clamp(0, 4);
+    _index = widget.initialIndex.clamp(0, 5);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routineStore == null) {
+      final scope = SettingsScope.of(context);
+      _routineStore = RoutineStore(notifications: scope.notifications);
+    }
+  }
+
+  @override
+  void dispose() {
+    _routineStore?.dispose();
+    super.dispose();
   }
 
   void _select(int value) => setState(() => _index = value);
@@ -32,6 +50,7 @@ class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
 
   @override
   Widget build(BuildContext context) {
+    final routineStore = _routineStore!;
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
@@ -40,6 +59,7 @@ class _PremiumWorkspacePageState extends State<PremiumWorkspacePage> {
           CalendarPage(store: widget.store),
           PremiumFocusPage(store: widget.store),
           _Search(store: widget.store),
+          RoutinesPage(store: routineStore),
           PremiumSettingsPage(onLogout: widget.onLogout),
         ];
 
@@ -70,14 +90,14 @@ class _Dock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const icons = [Icons.check_circle_outline_rounded, Icons.calendar_month_outlined, Icons.timer_outlined, Icons.search_rounded, Icons.tune_rounded];
-    const labels = ['Today', 'Calendar', 'Focus', 'Search', 'More'];
+    const icons = [Icons.check_circle_outline_rounded, Icons.calendar_month_outlined, Icons.timer_outlined, Icons.search_rounded, Icons.notifications_active_outlined, Icons.tune_rounded];
+    const labels = ['Today', 'Calendar', 'Focus', 'Search', 'Routines', 'More'];
 
     return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(14, 7, 14, 10),
+      minimum: const EdgeInsets.fromLTRB(8, 7, 8, 10),
       child: Container(
         height: 70,
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: scheme.surface,
           borderRadius: BorderRadius.circular(25),
@@ -85,7 +105,7 @@ class _Dock extends StatelessWidget {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 28, offset: const Offset(0, 8))],
         ),
         child: Row(
-          children: List.generate(5, (i) {
+          children: List.generate(6, (i) {
             final selected = i == index;
             return Expanded(
               child: InkWell(
@@ -93,14 +113,14 @@ class _Dock extends StatelessWidget {
                 borderRadius: BorderRadius.circular(19),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
                   decoration: BoxDecoration(color: selected ? scheme.primaryContainer : Colors.transparent, borderRadius: BorderRadius.circular(19)),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(icons[i], size: 22, color: selected ? scheme.primary : scheme.onSurfaceVariant),
+                      Icon(icons[i], size: 20, color: selected ? scheme.primary : scheme.onSurfaceVariant),
                       const SizedBox(height: 3),
-                      Text(labels[i], style: TextStyle(fontSize: 10.5, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, color: selected ? scheme.primary : scheme.onSurfaceVariant)),
+                      Text(labels[i], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9.5, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, color: selected ? scheme.primary : scheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -255,10 +275,7 @@ class _TaskTile extends StatelessWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailPage(store: store, task: task))),
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(color: isOverdue ? scheme.error.withValues(alpha: .55) : scheme.outlineVariant.withValues(alpha: .45)),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(21), border: Border.all(color: isOverdue ? scheme.error.withValues(alpha: .55) : scheme.outlineVariant.withValues(alpha: .45))),
           child: Row(children: [
             GestureDetector(
               onTap: () => store.toggleCompleted(task.id),
@@ -368,18 +385,10 @@ class _SearchState extends State<_Search> {
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 8),
-            sliver: SliverToBoxAdapter(
-              child: Text(
-                '${results.length} results',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
+            sliver: SliverToBoxAdapter(child: Text('${results.length} results', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800))),
           ),
           if (results.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: Text('No matching tasks.')),
-            )
+            const SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('No matching tasks.')))
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(22, 0, 22, 110),
