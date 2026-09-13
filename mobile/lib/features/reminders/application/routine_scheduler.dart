@@ -5,7 +5,6 @@ class RoutineScheduler {
   RoutineScheduler({LocalNotificationService? notifications}) : _notifications = notifications ?? LocalNotificationService();
 
   final LocalNotificationService _notifications;
-
   static const int _daysToSchedule = 14;
   static const int _occurrencesPerRoutine = 500;
 
@@ -20,7 +19,7 @@ class RoutineScheduler {
   }
 
   Future<void> schedule(Routine routine) async {
-    await cancel(routine.id);
+    await cancelWithDefinition(routine);
     if (!routine.enabled || routine.title.trim().isEmpty || routine.days.isEmpty) return;
 
     var scheduledCount = 0;
@@ -45,25 +44,16 @@ class RoutineScheduler {
     }
   }
 
-  Future<void> cancel(String routineId) async {
-    final now = DateTime.now();
-    for (var dayOffset = -1; dayOffset <= _daysToSchedule; dayOffset++) {
-      final date = DateTime(now.year, now.month, now.day + dayOffset);
-      // The ID is independent of the routine settings, so cancelling can
-      // safely remove every possible occurrence for the rolling window.
-      // The minute values are unknown here; cancellation is handled by the
-      // store using the persisted routine definition before updates.
-    }
-  }
-
   Future<void> cancelWithDefinition(Routine routine) async {
+    var cancelled = 0;
     final now = DateTime.now();
-    for (var dayOffset = -1; dayOffset <= _daysToSchedule; dayOffset++) {
+    for (var dayOffset = -1; dayOffset <= _daysToSchedule && cancelled < _occurrencesPerRoutine; dayOffset++) {
       final date = DateTime(now.year, now.month, now.day + dayOffset);
       if (!routine.days.contains(date.weekday)) continue;
-      for (var minutes = routine.startMinutes; minutes <= routine.endMinutes; minutes += routine.intervalMinutes) {
+      for (var minutes = routine.startMinutes; minutes <= routine.endMinutes && cancelled < _occurrencesPerRoutine; minutes += routine.intervalMinutes) {
         final scheduledAt = DateTime(date.year, date.month, date.day, minutes ~/ 60, minutes % 60);
         await _notifications.cancel(_notificationId(routine.id, scheduledAt));
+        cancelled++;
       }
     }
   }
