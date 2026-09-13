@@ -80,6 +80,12 @@ void main() {
     await tester.tap(editButton);
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
     expect(find.text('Edit task'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Save changes'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Save changes'), findsOneWidget);
 
     store.dispose();
