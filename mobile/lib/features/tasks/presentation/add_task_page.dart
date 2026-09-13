@@ -4,9 +4,23 @@ import '../application/task_store.dart';
 import '../domain/task.dart';
 
 class AddTaskPage extends StatefulWidget {
-  const AddTaskPage({super.key, required this.store, this.task});
+  const AddTaskPage({
+    super.key,
+    required this.store,
+    this.task,
+    this.startInDetailed = false,
+    this.initialTitle,
+    this.initialDueAt,
+    this.initialPriority,
+    this.initialReminderType,
+  });
   final TaskStore store;
   final Task? task;
+  final bool startInDetailed;
+  final String? initialTitle;
+  final DateTime? initialDueAt;
+  final TaskPriority? initialPriority;
+  final TaskReminderType? initialReminderType;
   bool get isEditing => task != null;
 
   @override
@@ -33,19 +47,19 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void initState() {
     super.initState();
     final t = widget.task;
-    _titleController = TextEditingController(text: t?.title ?? '');
+    _titleController = TextEditingController(text: t?.title ?? widget.initialTitle ?? '');
     _notesController = TextEditingController(text: t?.notes ?? '');
     _categoryController = TextEditingController(text: t?.category ?? '');
     _tagController = TextEditingController();
-    _dueAt = t?.dueAt;
-    _priority = t?.priority ?? TaskPriority.normal;
-    _reminderType = t?.reminderType ?? TaskReminderType.none;
+    _dueAt = t?.dueAt ?? widget.initialDueAt;
+    _priority = t?.priority ?? widget.initialPriority ?? TaskPriority.normal;
+    _reminderType = t?.reminderType ?? widget.initialReminderType ?? TaskReminderType.none;
     _interval = t?.reminderInterval ?? const Duration(hours: 2);
     _repeat = t?.repeat ?? TaskRepeat.none;
     _customDays = t?.repeatIntervalDays ?? 1;
     _favorite = t?.isFavorite ?? false;
     _tags.addAll(t?.tags ?? const <String>[]);
-    _detailed = widget.isEditing;
+    _detailed = widget.isEditing || widget.startInDetailed;
   }
 
   @override
