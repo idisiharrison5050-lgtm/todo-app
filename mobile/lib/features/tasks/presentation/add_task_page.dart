@@ -69,44 +69,94 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future time.')));
       return;
     }
-    setState(() { _dueAt = value; if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once; });
+    setState(() {
+      _dueAt = value;
+      if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once;
+    });
   }
 
   void _quick(Duration duration) {
     final value = DateTime.now().add(duration);
-    setState(() { _dueAt = DateTime(value.year, value.month, value.day, value.hour, value.minute); if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once; });
+    setState(() {
+      _dueAt = DateTime(value.year, value.month, value.day, value.hour, value.minute);
+      if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once;
+    });
   }
 
   void _tomorrow() {
     final value = DateTime.now().add(const Duration(days: 1));
-    setState(() { _dueAt = DateTime(value.year, value.month, value.day, 9); if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once; });
+    setState(() {
+      _dueAt = DateTime(value.year, value.month, value.day, 9);
+      if (_reminderType == TaskReminderType.none) _reminderType = TaskReminderType.once;
+    });
   }
 
   Future<void> _customReminderInterval() async {
     final current = _interval ?? const Duration(hours: 2);
     String unit;
     String amountText;
-    if (current.inDays > 0 && current.inHours % 24 == 0) { unit = 'days'; amountText = current.inDays.toString(); }
-    else if (current.inHours > 0 && current.inMinutes % 60 == 0) { unit = 'hours'; amountText = current.inHours.toString(); }
-    else { unit = 'minutes'; amountText = current.inMinutes.toString(); }
+    if (current.inDays > 0 && current.inHours % 24 == 0) {
+      unit = 'days';
+      amountText = current.inDays.toString();
+    } else if (current.inHours > 0 && current.inMinutes % 60 == 0) {
+      unit = 'hours';
+      amountText = current.inHours.toString();
+    } else {
+      unit = 'minutes';
+      amountText = current.inMinutes.toString();
+    }
     final controller = TextEditingController(text: amountText);
     final result = await showDialog<Duration>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Custom recurring reminder'),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Choose how often Todo should remind you.'),
-            const SizedBox(height: 18),
-            Row(children: [
-              Expanded(child: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Every', border: OutlineInputBorder()))),
-              const SizedBox(width: 10),
-              Expanded(child: DropdownButtonFormField<String>(initialValue: unit, decoration: const InputDecoration(border: OutlineInputBorder()), items: const [DropdownMenuItem(value: 'minutes', child: Text('Minutes')), DropdownMenuItem(value: 'hours', child: Text('Hours')), DropdownMenuItem(value: 'days', child: Text('Days'))], onChanged: (value) { if (value != null) setDialogState(() => unit = value); })),
-            ]),
-          ]),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Choose how often Todo should remind you.'),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Every', border: OutlineInputBorder()),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: unit,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                        DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                        DropdownMenuItem(value: 'days', child: Text('Days')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setDialogState(() => unit = value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-            FilledButton(onPressed: () { final amount = int.tryParse(controller.text.trim()); if (amount == null || amount < 1) return; final duration = unit == 'minutes' ? Duration(minutes: amount) : unit == 'hours' ? Duration(hours: amount) : Duration(days: amount); Navigator.pop(dialogContext, duration); }, child: const Text('Set repeat')),
+            FilledButton(
+              onPressed: () {
+                final amount = int.tryParse(controller.text.trim());
+                if (amount == null || amount < 1) return;
+                final duration = unit == 'minutes' ? Duration(minutes: amount) : unit == 'hours' ? Duration(hours: amount) : Duration(days: amount);
+                Navigator.pop(dialogContext, duration);
+              },
+              child: const Text('Set repeat'),
+            ),
           ],
         ),
       ),
@@ -125,7 +175,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Future<void> _save() async {
     if (_saving) return;
     final title = _titleController.text.trim();
-    if (title.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Give your task a name first.'))); return; }
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Give your task a name first.')));
+      return;
+    }
     setState(() => _saving = true);
     try {
       final category = _categoryController.text.trim();
@@ -160,7 +213,18 @@ class _AddTaskPageState extends State<AddTaskPage> {
             const SizedBox(height: 8),
             Text('Capture a task instantly. Use More when you want to add details.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(height: 28),
-            _ModeCard(icon: Icons.bolt_rounded, title: 'Quick Capture', description: 'Type one thing and get it out of your head.', badge: 'FASTEST', onTap: () {}, onMore: () => setState(() => _detailed = true), autofocus: true, controller: _titleController, onSave: _save, scheme: scheme),
+            _ModeCard(
+              icon: Icons.bolt_rounded,
+              title: 'Quick Capture',
+              description: 'Type one thing and get it out of your head.',
+              badge: 'FASTEST',
+              onTap: () {},
+              onMore: () => setState(() => _detailed = true),
+              autofocus: true,
+              controller: _titleController,
+              onSave: _save,
+              scheme: scheme,
+            ),
           ],
         ),
       ),
@@ -200,7 +264,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
         const SizedBox(height: 10),
         _PremiumDropdown<Duration>(value: currentInterval, items: intervalItems, onChanged: (v) { if (v != null) setState(() => _interval = v); }),
         const SizedBox(height: 8),
-        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat')),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(onPressed: _customReminderInterval, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('Set a custom repeat')),
+        ),
       ]);
     }
 
@@ -264,27 +331,41 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(elevation: 0, clipBehavior: Clip.antiAlias, child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: scheme.primary)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))])),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(99)), child: Text(badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.onSecondaryContainer))),
-      ]),
-      if (controller != null) ...[
-        const SizedBox(height: 18),
-        TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded)))),
-        const SizedBox(height: 10),
-        Row(children: [
-          if (onMore != null) TextButton.icon(onPressed: onMore, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('More')),
-          const Spacer(),
-          FilledButton.tonalIcon(onPressed: onSave, icon: const Icon(Icons.add_rounded, size: 18), label: const Text('Add task')),
-        ]),
-      ] else ...[
-        const SizedBox(height: 16),
-        Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed'))),
-      ],
-    ]));
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(width: 46, height: 46, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: scheme.primary)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(99)), child: Text(badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: scheme.onSecondaryContainer))),
+              ],
+            ),
+            if (controller != null) ...[
+              const SizedBox(height: 18),
+              TextField(controller: controller, autofocus: autofocus, textInputAction: TextInputAction.done, onSubmitted: (_) => onSave?.call(), decoration: InputDecoration(hintText: 'What needs to be done?', suffixIcon: IconButton(onPressed: onSave, icon: const Icon(Icons.arrow_forward_rounded)))),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (onMore != null) TextButton.icon(onPressed: onMore, icon: const Icon(Icons.tune_rounded, size: 18), label: const Text('More')),
+                  const Spacer(),
+                  FilledButton.tonalIcon(onPressed: onSave, icon: const Icon(Icons.add_rounded, size: 18), label: const Text('Add task')),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 16),
+              Align(alignment: Alignment.centerRight, child: FilledButton.tonalIcon(onPressed: onTap, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Use detailed'))),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -342,7 +423,7 @@ class _QuickScheduleRow extends StatelessWidget {
   final VoidCallback onHour;
   final VoidCallback onTomorrow;
   @override
-  Widget build(BuildContext context) => Row(children: [Expanded(child: OutlinedButton.icon(onPressed: on15, icon: const Icon(Icons.timer_outlined, size: 18), label: const Text('15 min'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onHour, icon: const Icon(Icons.schedule_outlined, size: 18), label: const Text('1 hour'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onTomorrow, icon: const Icon(Icons.wb_sunny_outlined, size: 18), label: const Text('Tomorrow')))]);
+  Widget build(BuildContext context) => Row(children: [Expanded(child: OutlinedButton.icon(onPressed: on15, icon: const Icon(Icons.timer_outlined, size: 18), label: const Text('15 min'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onHour, icon: const Icon(Icons.schedule_outlined, size: 18), label: const Text('1 hour'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: onTomorrow, icon: const Icon(Icons.wb_sunny_outlined), label: const Text('Tomorrow')))]);
 }
 
 class _PrioritySelector extends StatelessWidget {
