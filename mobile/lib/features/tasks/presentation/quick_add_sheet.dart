@@ -79,11 +79,21 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   Future<void> _openMore() async {
     final title = _controller.text.trim();
+    final dueAt = _dueAt;
+    final priority = _priority;
+    final reminderType = _reminder ? TaskReminderType.once : TaskReminderType.none;
     final navigator = Navigator.of(context);
     navigator.pop();
     await navigator.push(
       MaterialPageRoute(
-        builder: (_) => AddTaskPage(store: widget.store),
+        builder: (_) => AddTaskPage(
+          store: widget.store,
+          startInDetailed: true,
+          initialTitle: title.isEmpty ? null : title,
+          initialDueAt: dueAt,
+          initialPriority: priority,
+          initialReminderType: reminderType,
+        ),
       ),
     );
   }
