@@ -10,9 +10,11 @@ import 'routine_scheduler.dart';
 
 class RoutineStore extends ChangeNotifier {
   RoutineStore({LocalNotificationService? notifications})
-      : _scheduler = RoutineScheduler(notifications: notifications);
+      : _notifications = notifications ?? LocalNotificationService(),
+        _scheduler = RoutineScheduler(notifications: notifications);
 
   static const String _storageKey = 'todo_routines_v1';
+  final LocalNotificationService _notifications;
   final RoutineScheduler _scheduler;
   final Uuid _uuid = const Uuid();
   List<Routine> _routines = <Routine>[];
@@ -38,6 +40,11 @@ class RoutineStore extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+
+    // Rebuild the next notification window whenever routines are loaded.
+    for (final routine in _routines.where((item) => item.enabled)) {
+      await _scheduler.schedule(routine);
+    }
   }
 
   Future<Routine> add({
@@ -58,6 +65,10 @@ class RoutineStore extends ChangeNotifier {
       days: List<int>.from(days),
       createdAt: DateTime.now(),
     );
+    final notificationsGranted = await _notifications.requestPermissions();
+    if (!notificationsGranted) {
+      throw StateError('Notification permission is required for routine reminders.');
+    }
     _routines = [..._routines, routine];
     await _persist();
     notifyListeners();
@@ -70,6 +81,12 @@ class RoutineStore extends ChangeNotifier {
     if (index == -1) return;
     final previous = _routines[index];
     await _scheduler.cancelWithDefinition(previous);
+    if (routine.enabled) {
+      final notificationsGranted = await _notifications.requestPermissions();
+      if (!notificationsGranted) {
+        throw StateError('Notification permission is required for routine reminders.');
+      }
+    }
     _routines = [..._routines]..[index] = routine;
     await _persist();
     notifyListeners();
