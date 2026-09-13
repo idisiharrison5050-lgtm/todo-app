@@ -41,7 +41,6 @@ class RoutineStore extends ChangeNotifier {
     _loaded = true;
     notifyListeners();
 
-    // Rebuild the next notification window whenever routines are loaded.
     for (final routine in _routines.where((item) => item.enabled)) {
       await _scheduler.schedule(routine);
     }
