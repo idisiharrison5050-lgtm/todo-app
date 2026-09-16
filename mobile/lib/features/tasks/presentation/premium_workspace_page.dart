@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../reminders/application/routine_store.dart';
+import '../../reminders/presentation/notification_center_page.dart';
 import '../../reminders/presentation/routines_page.dart';
 import '../application/task_store.dart';
 import '../domain/task.dart';
@@ -139,6 +140,11 @@ class _Today extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onSearch;
 
+  void _openNotifications(BuildContext context) {
+    final scope = SettingsScope.of(context);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => NotificationCenterPage(notifications: scope.notifications, taskStore: store)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -171,7 +177,8 @@ class _Today extends StatelessWidget {
                     Text('Today', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.4)),
                   ]),
                 ),
-                IconButton(onPressed: onSearch, icon: const Icon(Icons.search_rounded)),
+                IconButton(onPressed: () => _openNotifications(context), tooltip: 'Notifications', icon: const Icon(Icons.notifications_none_rounded)),
+                IconButton(onPressed: onSearch, tooltip: 'Search', icon: const Icon(Icons.search_rounded)),
               ]),
             ),
           ),
