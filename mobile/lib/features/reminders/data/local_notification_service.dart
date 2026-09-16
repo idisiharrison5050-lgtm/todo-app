@@ -148,6 +148,32 @@ class LocalNotificationService {
     }
   }
 
+  Future<void> scheduleRecurring({required int id, required String title, required String body, required DateTime scheduledAt, required DateTimeComponents matchDateTimeComponents, String? payload}) async {
+    await initialize();
+    if (kIsWeb) return;
+    final scheduled = tz.TZDateTime(tz.local, scheduledAt.year, scheduledAt.month, scheduledAt.day, scheduledAt.hour, scheduledAt.minute);
+    final details = NotificationDetails(android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public), iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'));
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final exactAllowed = await android?.canScheduleExactNotifications() ?? false;
+    try {
+      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: exactAllowed ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle, matchDateTimeComponents: matchDateTimeComponents);
+    } on PlatformException {
+      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, matchDateTimeComponents: matchDateTimeComponents);
+    }
+  }
+
+  Future<void> cancelByPayloadPrefix(String prefix) async {
+    if (kIsWeb) return;
+    await initialize();
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final notification in pending) {
+      final payload = notification.payload;
+      if (payload != null && payload.startsWith(prefix)) {
+        await _plugin.cancel(id: notification.id);
+      }
+    }
+  }
+
   Future<void> cancel(int id) async { if (kIsWeb) return; await initialize(); await _plugin.cancel(id: id); }
   Future<void> cancelAll() async { if (kIsWeb) return; await initialize(); await _plugin.cancelAll(); }
   tz.TZDateTime _preserveDelay(DateTime scheduledAt) => tz.TZDateTime.now(tz.local).add(scheduledAt.difference(DateTime.now()));
