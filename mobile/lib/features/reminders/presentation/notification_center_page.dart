@@ -55,9 +55,15 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
 
   void _openPayload(String? payload) {
     if (payload == null || payload.isEmpty || payload.startsWith('routine:')) return;
-    final task = widget.taskStore.tasks.where((item) => item.id == payload).firstOrNull;
+    Task? task;
+    for (final item in widget.taskStore.tasks) {
+      if (item.id == payload) {
+        task = item;
+        break;
+      }
+    }
     if (task == null || !mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: widget.taskStore, task: task)));
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => TaskDetailPage(store: widget.taskStore, task: task!)));
   }
 
   @override
