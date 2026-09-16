@@ -6,6 +6,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'notification_history_store.dart';
+
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) {
   if (response.actionId == LocalNotificationService.snooze5Action || response.actionId == LocalNotificationService.snooze10Action || response.actionId == LocalNotificationService.snooze30Action) {
@@ -16,6 +18,7 @@ void notificationTapBackground(NotificationResponse response) {
 class LocalNotificationService {
   LocalNotificationService({FlutterLocalNotificationsPlugin? plugin}) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
   final FlutterLocalNotificationsPlugin _plugin;
+  final NotificationHistoryStore _history = NotificationHistoryStore();
   bool _initialized = false;
   static void Function(String taskId)? onNotificationTap;
   static void Function(String taskId, int minutes)? onSnoozeRequested;
@@ -151,6 +154,7 @@ class LocalNotificationService {
     } on PlatformException {
       await _plugin.zonedSchedule(id: id, title: title, body: body, notificationDetails: details, scheduledDate: scheduled, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
     }
+    await _history.record(notificationId: id, title: title, body: body, scheduledAt: scheduledAt, payload: payload);
   }
 
   Future<void> scheduleRecurring({required int id, required String title, required String body, required DateTime scheduledAt, required DateTimeComponents matchDateTimeComponents, String? payload}) async {
@@ -165,6 +169,19 @@ class LocalNotificationService {
     } on PlatformException {
       await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, matchDateTimeComponents: matchDateTimeComponents);
     }
+    await _history.record(notificationId: id, title: title, body: body, scheduledAt: scheduledAt, payload: payload);
+  }
+
+  Future<List<PendingNotificationRequest>> pendingNotifications() async {
+    if (kIsWeb) return const <PendingNotificationRequest>[];
+    await initialize();
+    return _plugin.pendingNotificationRequests();
+  }
+
+  Future<List<ActiveNotification>> activeNotifications() async {
+    if (kIsWeb) return const <ActiveNotification>[];
+    await initialize();
+    return _plugin.getActiveNotifications();
   }
 
   Future<void> cancelByPayloadPrefix(String prefix) async {
