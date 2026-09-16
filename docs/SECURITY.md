@@ -12,17 +12,19 @@ Security is part of every phase, not a final cleanup task.
 ## Authorization
 - Treat all mobile/web input as untrusted.
 - Scope every private query to the authenticated user.
-- Use explicit policies/authorization checks for resource mutations.
+- Use explicit token abilities and ownership checks for resource mutations.
 - Add automated tests proving cross-user access is impossible.
 
 ## API
 - HTTPS in every production environment.
 - Strict request validation and reasonable payload limits.
-- CORS restricted to known origins.
+- CORS restricted to known origins in production.
 - Secure headers where applicable.
 - Consistent non-sensitive error responses.
-- Rate limiting and abuse controls.
-- Idempotency for retryable mutations.
+- Rate limiting and abuse controls are applied to authentication and task/reminder API operations.
+- Synchronization uses a server-controlled task version; clients must provide their last known version for conflict-sensitive writes.
+- Deletion tombstones carry a server-side version so stale offline copies cannot resurrect deleted tasks.
+- Retry-safe/idempotent mutation identifiers remain a release-gate requirement and must be completed before public release.
 
 ## Mobile
 - Secure storage for credentials.
@@ -30,7 +32,7 @@ Security is part of every phase, not a final cleanup task.
 - Minimize permissions.
 - Explain notification permission requests in context.
 - Do not expose sensitive task content in notifications by default where lock-screen privacy is a concern.
-- Handle app lifecycle and process death safely.
+- Handle app lifecycle, process death, background notification actions, and cold-start notification taps safely.
 - Do not treat jailbreak/root detection as authorization.
 
 ## Data protection
