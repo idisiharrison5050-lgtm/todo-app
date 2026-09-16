@@ -55,7 +55,7 @@ class LocalNotificationService {
     await android?.createNotificationChannel(const AndroidNotificationChannel('todo_reminders', 'Task reminders', description: 'Reminders for scheduled tasks', importance: Importance.high));
     final scheduled = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
     await plugin.cancel(id: _snoozeNotificationId(taskId));
-    final details = NotificationDetails(android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: <AndroidNotificationAction>[AndroidNotificationAction(snooze5Action, '5 min'), AndroidNotificationAction(snooze10Action, '10 min'), AndroidNotificationAction(snooze30Action, '30 min')]), iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'));
+    final details = NotificationDetails(android: AndroidNotificationDetails('todo_reminders', 'Task reminders', channelDescription: 'Reminders for scheduled tasks', importance: Importance.max, priority: Priority.max, playSound: true, enableVibration: true, category: AndroidNotificationCategory.reminder, visibility: NotificationVisibility.public, actions: const <AndroidNotificationAction>[]), iOS: const DarwinNotificationDetails(categoryIdentifier: 'todo_reminder'));
     final exactAllowed = await android?.canScheduleExactNotifications() ?? false;
     try {
       await plugin.zonedSchedule(id: _snoozeNotificationId(taskId), title: 'Task reminder', body: 'Snoozed reminder.', scheduledDate: scheduled, notificationDetails: details, payload: taskId, androidScheduleMode: exactAllowed ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle);
@@ -77,10 +77,15 @@ class LocalNotificationService {
       final taskId = response.payload;
       if (taskId == null || taskId.isEmpty) return;
       switch (response.actionId) {
-        case snooze5Action: onSnoozeRequested?.call(taskId, 5); return;
-        case snooze10Action: onSnoozeRequested?.call(taskId, 10); return;
-        case snooze30Action: onSnoozeRequested?.call(taskId, 30); return;
-        default: onNotificationTap?.call(taskId);
+        case snooze5Action:
+        case snooze10Action:
+        case snooze30Action:
+          final minutes = _minutesForAction(response.actionId ?? '');
+          unawaited(scheduleSnoozeFromBackground(response));
+          onSnoozeRequested?.call(taskId, minutes);
+          return;
+        default:
+          onNotificationTap?.call(taskId);
       }
     }, onDidReceiveBackgroundNotificationResponse: notificationTapBackground);
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -142,9 +147,9 @@ class LocalNotificationService {
     final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final exactAllowed = await android?.canScheduleExactNotifications() ?? false;
     try {
-      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: exactAllowed ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle);
+      await _plugin.zonedSchedule(id: id, title: title, body: body, notificationDetails: details, scheduledDate: scheduled, payload: payload, androidScheduleMode: exactAllowed ? AndroidScheduleMode.exactAllowWhileIdle : AndroidScheduleMode.inexactAllowWhileIdle);
     } on PlatformException {
-      await _plugin.zonedSchedule(id: id, title: title, body: body, scheduledDate: scheduled, notificationDetails: details, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
+      await _plugin.zonedSchedule(id: id, title: title, body: body, notificationDetails: details, scheduledDate: scheduled, payload: payload, androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
     }
   }
 
