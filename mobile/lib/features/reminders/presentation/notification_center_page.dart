@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../data/local_notification_service.dart';
 import '../data/notification_history_store.dart';
 import '../../tasks/application/task_store.dart';
+import '../../tasks/domain/task.dart';
 import '../../tasks/presentation/task_detail_page.dart';
 
 class NotificationCenterPage extends StatefulWidget {
